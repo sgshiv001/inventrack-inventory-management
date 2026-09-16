@@ -12,6 +12,8 @@ The project is a full-stack single-page application. The frontend is built with 
 
 The dashboard includes role-based workspaces for administrators, suppliers, distributors, retailers, and wholesalers. It also includes charts, business statistics, a sales-region globe, a log book, and a local data-aware chatbot for asking inventory questions.
 
+**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.1.0`
+
 ## Quick Start
 
 Run the complete website locally:
@@ -341,6 +343,8 @@ The current project runs as a Node.js website with a SQLite database. For local 
 ### Portfolio demo
 
 The `dist/` folder is a self-contained static demo package for portfolio hosting. It opens with curated inventory and shipment seed data, so a reviewer can explore the dashboard, globe, assistant, and Shipping & Tracking Center without a database connection. Mutating actions remain intentionally disabled in this static snapshot.
+
+The hosted demo uses the same static package and seeded data. The full-stack Node.js + SQLite implementation remains available in this repository for local development and backend evaluation.
 
 ### Full-stack mode
 
