@@ -38,6 +38,7 @@ See [LAUNCH.md](LAUNCH.md) for domain hosting, deployment, database notes, and t
 
 ## Table of Contents
 
+0. [Interface Previews](#interface-previews)
 1. [Project Specification](#project-specification)
 2. [Problem Statement & Objectives](#problem-statement--objectives)
 3. [System Architecture & Core Modules](#system-architecture--core-modules)
@@ -51,6 +52,20 @@ See [LAUNCH.md](LAUNCH.md) for domain hosting, deployment, database notes, and t
 11. [Repository Structure](#repository-structure)
 12. [Quality Assurance & Test Scenarios](#quality-assurance--test-scenarios)
 13. [Limitations & Future Roadmap](#limitations--future-roadmap)
+
+For a short presentation script, see [docs/PORTFOLIO.md](docs/PORTFOLIO.md). For the technical data flow, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## Interface Previews
+
+The repository includes readable, scalable previews of the two main portfolio flows:
+
+![InvenTrack executive dashboard](docs/screenshots/dashboard.svg)
+
+![InvenTrack shipping and tracking center](docs/screenshots/logistics.svg)
+
+These previews are useful on GitHub when the live demo is sleeping or unavailable. The deployed demo remains the best place to interact with the seeded inventory and shipment workflows.
 
 ---
 
@@ -119,8 +134,9 @@ InvenTrack is a **full-stack Single-Page Application (SPA)**. Node.js serves the
 3. **Reorder Planning Engine (`#reorder`):** Automated procurement analysis identifying all items at or below reorder threshold, calculating suggested order quantities and supplier-specific cost projections.
 4. **Stock Movement Ledger (`#movements`):** Immutable audit ledger recording every inventory adjustment, incoming supplier delivery, or customer dispatch with references, notes, timestamps, and updated balances.
 5. **Supplier Directory (`#suppliers`):** Contact cards for vendors, linked product counters, and direct communication links (`tel:`, `mailto:`).
-6. **Audit Log Book (`#logbook`):** Central operational timeline recording user interactions, data mutations, and workspace configuration changes with role context.
-7. **Project Documentation & Demo Reset (`#about`):** Overview of academic goals, technology stack, entity relationship diagrams, and an instant demo-data reset mechanism for presentations.
+6. **Shipping & Tracking Center (`#logistics`):** Shipment KPIs, delivery status filters, activity heatmap, route map, tracking event timeline, ETA visibility, and a create/advance shipment workflow.
+7. **Audit Log Book (`#logbook`):** Central operational timeline recording user interactions, data mutations, and workspace configuration changes with role context.
+8. **Project Documentation & Demo Reset (`#about`):** Overview of academic goals, technology stack, entity relationship diagrams, and an instant demo-data reset mechanism for presentations.
 
 ---
 
@@ -165,7 +181,10 @@ The data layer models an operational supply chain using normalized entity relati
 * **`suppliers`**: SQLite supplier table with the supplier contact fields.
 * **`products`**: SQLite product table with a case-insensitive unique SKU and optional supplier foreign key.
 * **`movements`**: SQLite movement ledger table storing stock-in, stock-out, and adjustments.
-* **API**: `GET /api/inventory` loads the three collections; `PUT /api/inventory` saves them atomically in a SQLite transaction.
+* **`sales_regions`**: Geographic sales destinations used by the executive globe.
+* **`shipments`**: Shipment records with tracking IDs, route coordinates, carrier, status, value, weight, and ETA.
+* **`shipment_events`**: Chronological delivery milestones linked to each shipment.
+* **API**: `GET /api/inventory` loads all collections; `PUT /api/inventory` saves them atomically in a SQLite transaction.
 
 #### 2. Workspace Database (`localStorage['inventrack_workspace_v1']`)
 * **`role`**: `'retailer' | 'wholesaler' | 'admin'`
@@ -182,6 +201,7 @@ The data layer models an operational supply chain using normalized entity relati
 * **Dark / Light Theme Engine:** Persisted visual styling with high-contrast color variables conforming to modern accessibility standards.
 * **Executive Dashboard:** Clean professional dashboard with inventory value, market value, supplier/distributor summaries, stock readiness, and readable business charts.
 * **Sales Region Globe:** Interactive world-sales visualization showing where products are selling and where expansion opportunities are available.
+* **Shipping & Tracking Center:** Database-backed shipment records with delivery KPIs, status filters, activity heatmap, route map, tracking history, ETA visibility, and a create-shipment workflow.
 * **Local Inventory Assistant:** Built-in chatbot that answers inventory questions from the current database without sending stock data to a third-party AI service.
 * **Dual-Direction CSV Engine:**
   * **Export:** One-click CSV generation capturing full catalogue records, computed valuations, margins, and supplier names.
@@ -192,11 +212,11 @@ The data layer models an operational supply chain using normalized entity relati
 
 ## Changelog & Chronological Development
 
-### Latest Project Update - September 13, 2026
+### Latest Project Update - September 17, 2026
 
-The project was upgraded into a more complete full-stack management dashboard. The latest version includes a professional forest-green and warm-white interface, larger readable labels, solid dashboard panels, sharp charts, visible database status, safer backend saving, SQLite WAL mode, and restricted static-file serving.
+The project was upgraded into a more complete full-stack management dashboard. The latest version includes a professional midnight-indigo interface with cyan and coral accents, larger readable labels, solid dashboard panels, sharp charts, visible database status, safer backend saving, SQLite WAL mode, and restricted static-file serving.
 
-The distribution globe was rebuilt with a cleaner orthographic world projection, land shapes, route arcs, status markers, region selection, and clearer business labels. The Log book now shows database-backed product release notes, and the backend can be checked with:
+The distribution globe was rebuilt with a cleaner orthographic world projection, land shapes, route arcs, status markers, region selection, and clearer business labels. The new Logistics Center adds shipment KPIs, status filters, a delivery activity heatmap, a route map, tracking history, ETA visibility, status progression, and database-backed shipment events. The Log book now shows database-backed product release notes, and the backend can be checked with:
 
 ```bash
 node tests/backend.cjs
@@ -214,6 +234,9 @@ Initial Prototype      Workflow Overhaul      CSV Import & Tooling      Workspac
 - Basic CSS layout       - Valuation & margin logic - Safe CSV opening stock   - Dark / Light mode engine - API synchronization
 - Initial seed data      - Supplier relation guards - Documentation polish     - Notification center      - Backend documentation
                                                                          - Reactivity & contrast fixes
+2026-09-17
+- Midnight-indigo theme     - Logistics Center workspace - Shipment route map
+- Shipment event timeline   - Create/advance delivery status - Shipment schema and seed data
 ```
 
 ### Detailed Evolution Timeline
@@ -315,6 +338,12 @@ Choose **Launch InvenTrack Server** in the Run and Debug panel, then press **F5*
 
 The current project runs as a Node.js website with a SQLite database. For local use, `data/inventrack.db` is created on the same computer that runs `server.js`.
 
+### Portfolio demo
+
+The `dist/` folder is a self-contained static demo package for portfolio hosting. It opens with curated inventory and shipment seed data, so a reviewer can explore the dashboard, globe, assistant, and Shipping & Tracking Center without a database connection. Mutating actions remain intentionally disabled in this static snapshot.
+
+### Full-stack mode
+
 To make it accessible outside localhost, deploy the Node.js server to a hosting platform such as Render, Railway, Fly.io, a VPS, or another Node-compatible host. A custom domain can then point to that hosted server. For a production business version, the next required additions are real customer login, organization isolation, payment/billing, backups, and stronger database hosting such as PostgreSQL.
 
 See [LAUNCH.md](LAUNCH.md) for the detailed deployment path.
@@ -350,6 +379,10 @@ INVENTORY MANAGEMENT SYSTEM/
 ├── reports/
 │   ├── inventory.csv          # Sample generated CSV inventory report
 │   └── summary.md             # Sample generated Markdown inventory summary
+├── docs/
+│   ├── ARCHITECTURE.md        # System, data-flow, deployment, and design decisions
+│   ├── PORTFOLIO.md           # Two-minute demo route and interview talking points
+│   └── screenshots/           # GitHub-friendly scalable interface previews
 ├── tests/
 │   └── backend.cjs            # Backend persistence and API safety checks
 ├── tools/
@@ -383,6 +416,8 @@ The following matrix outlines test cases to verify application behavior:
 | **TC-08** | Dark Mode Persistence | Toggle theme to Dark, reload browser window. | Document root retains `[data-theme="dark"]`, all panels/dialogs render with high-contrast styles. | Pass |
 | **TC-09** | Role Switcher | Click the topbar role chip and select a different role. | Active role badge updates instantly, activity log captures the event, and preference persists. | Pass |
 | **TC-10** | Python Reporting Tool | Execute `python tools/inventory_report.py`. | Generates `reports/inventory.csv` and `reports/summary.md` with accurate valuation math. | Pass |
+| **TC-11** | Shipment Tracking | Open **Shipping & tracking**, select a shipment, then advance its status. | Route map, timeline, KPI counts, and database-backed status update immediately. | Pass |
+| **TC-12** | Create Shipment | Create a shipment with customer, route, carrier, value, weight, and ETA. | New shipment appears in the table and persists after reload. | Pass |
 
 ---
 

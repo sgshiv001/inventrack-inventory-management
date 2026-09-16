@@ -36,6 +36,29 @@ const seed = {
     { id: 'r4', city: 'Dubai', country: 'UAE', latitude: 25.205, longitude: 55.271, sales: 133000, units: 61, status: 'healthy' },
     { id: 'r5', city: 'Singapore', country: 'Singapore', latitude: 1.352, longitude: 103.82, sales: 97000, units: 48, status: 'watch' },
     { id: 'r6', city: 'London', country: 'United Kingdom', latitude: 51.507, longitude: -0.128, sales: 76000, units: 31, status: 'risk' }
+  ],
+  shipments: [
+    { id: 'sh1', tracking: 'IT-2026-1042', customer: 'Nova Retail Co.', origin: { label: 'Mumbai, India', latitude: 19.076, longitude: 72.877 }, destination: { label: 'Bengaluru, India', latitude: 12.972, longitude: 77.594 }, carrier: 'InvenTrack Express', status: 'in-transit', weight: 184, value: 284000, eta: '2026-09-19', createdAt: '2026-09-13T08:30:00Z', updatedAt: '2026-09-16T10:10:00Z', events: [
+      { id: 'she1', status: 'delivered', title: 'Shipment booked', detail: 'Order confirmed and packed at the Mumbai fulfilment hub.', location: 'Mumbai, India', date: '2026-09-13T08:30:00Z' },
+      { id: 'she2', status: 'in-transit', title: 'In transit', detail: 'Carrier has collected the shipment and it is moving to Bengaluru.', location: 'Pune, India', date: '2026-09-16T10:10:00Z' }
+    ] },
+    { id: 'sh2', tracking: 'IT-2026-1037', customer: 'GreenLeaf Wholesale', origin: { label: 'Kochi, India', latitude: 9.931, longitude: 76.267 }, destination: { label: 'Dubai, UAE', latitude: 25.205, longitude: 55.271 }, carrier: 'Skyline Cargo', status: 'delivered', weight: 92, value: 176500, eta: '2026-09-15', createdAt: '2026-09-10T06:50:00Z', updatedAt: '2026-09-15T14:20:00Z', events: [
+      { id: 'she3', status: 'delivered', title: 'Delivered', detail: 'Delivery confirmed by the receiving team.', location: 'Dubai, UAE', date: '2026-09-15T14:20:00Z' },
+      { id: 'she4', status: 'in-transit', title: 'Customs cleared', detail: 'Shipment cleared destination customs.', location: 'Dubai, UAE', date: '2026-09-14T11:05:00Z' }
+    ] },
+    { id: 'sh3', tracking: 'IT-2026-1051', customer: 'Metro Office Supplies', origin: { label: 'Mumbai, India', latitude: 19.076, longitude: 72.877 }, destination: { label: 'Delhi, India', latitude: 28.614, longitude: 77.209 }, carrier: 'RapidRoute Logistics', status: 'pending', weight: 48, value: 98500, eta: '2026-09-21', createdAt: '2026-09-16T09:15:00Z', updatedAt: '2026-09-16T09:15:00Z', events: [
+      { id: 'she5', status: 'pending', title: 'Ready for pickup', detail: 'Shipment is packed and waiting for carrier collection.', location: 'Mumbai, India', date: '2026-09-16T09:15:00Z' }
+    ] },
+    { id: 'sh4', tracking: 'IT-2026-1029', customer: 'Northstar Retail', origin: { label: 'Bengaluru, India', latitude: 12.972, longitude: 77.594 }, destination: { label: 'Singapore', latitude: 1.352, longitude: 103.82 }, carrier: 'OceanLink Freight', status: 'delayed', weight: 310, value: 342000, eta: '2026-09-20', createdAt: '2026-09-08T07:40:00Z', updatedAt: '2026-09-16T18:40:00Z', events: [
+      { id: 'she6', status: 'delayed', title: 'Weather delay', detail: 'Departure moved by 24 hours due to adverse weather.', location: 'Chennai, India', date: '2026-09-16T18:40:00Z' },
+      { id: 'she7', status: 'in-transit', title: 'Departed origin hub', detail: 'Shipment left the Bengaluru consolidation centre.', location: 'Bengaluru, India', date: '2026-09-12T12:25:00Z' }
+    ] },
+    { id: 'sh5', tracking: 'IT-2026-1018', customer: 'Atlas Trade Group', origin: { label: 'Mumbai, India', latitude: 19.076, longitude: 72.877 }, destination: { label: 'London, United Kingdom', latitude: 51.507, longitude: -0.128 }, carrier: 'GlobalParcel', status: 'delivered', weight: 126, value: 219000, eta: '2026-09-12', createdAt: '2026-09-04T09:05:00Z', updatedAt: '2026-09-12T16:05:00Z', events: [
+      { id: 'she8', status: 'delivered', title: 'Delivered', detail: 'Signed for by the receiving warehouse.', location: 'London, United Kingdom', date: '2026-09-12T16:05:00Z' }
+    ] },
+    { id: 'sh6', tracking: 'IT-2026-1054', customer: 'Harbour Retail Network', origin: { label: 'Kochi, India', latitude: 9.931, longitude: 76.267 }, destination: { label: 'Delhi, India', latitude: 28.614, longitude: 77.209 }, carrier: 'InvenTrack Express', status: 'in-transit', weight: 76, value: 126000, eta: '2026-09-22', createdAt: '2026-09-16T15:35:00Z', updatedAt: '2026-09-17T07:20:00Z', events: [
+      { id: 'she9', status: 'in-transit', title: 'Departed origin hub', detail: 'Shipment is on the line-haul route to Delhi.', location: 'Kochi, India', date: '2026-09-17T07:20:00Z' }
+    ] }
   ]
 };
 
@@ -49,20 +72,24 @@ db.exec(`PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, name TEXT NOT NULL, contact TEXT, phone TEXT, email TEXT, address TEXT);
   CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT NOT NULL, sku TEXT NOT NULL COLLATE NOCASE UNIQUE, category TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity >= 0), reorder_level INTEGER NOT NULL CHECK(reorder_level >= 0), cost REAL NOT NULL CHECK(cost >= 0), price REAL NOT NULL CHECK(price >= 0), supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL);
   CREATE TABLE IF NOT EXISTS movements (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('in', 'out', 'adjustment')), quantity INTEGER NOT NULL CHECK(quantity >= 0), balance INTEGER NOT NULL CHECK(balance >= 0), reference TEXT, notes TEXT, date TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS sales_regions (id TEXT PRIMARY KEY, city TEXT NOT NULL, country TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, sales REAL NOT NULL CHECK(sales >= 0), units INTEGER NOT NULL CHECK(units >= 0), status TEXT NOT NULL CHECK(status IN ('healthy', 'watch', 'risk')));`);
+  CREATE TABLE IF NOT EXISTS sales_regions (id TEXT PRIMARY KEY, city TEXT NOT NULL, country TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, sales REAL NOT NULL CHECK(sales >= 0), units INTEGER NOT NULL CHECK(units >= 0), status TEXT NOT NULL CHECK(status IN ('healthy', 'watch', 'risk')));
+  CREATE TABLE IF NOT EXISTS shipments (id TEXT PRIMARY KEY, tracking TEXT NOT NULL COLLATE NOCASE UNIQUE, customer TEXT NOT NULL, origin TEXT NOT NULL, origin_lat REAL NOT NULL, origin_lng REAL NOT NULL, destination TEXT NOT NULL, destination_lat REAL NOT NULL, destination_lng REAL NOT NULL, carrier TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending', 'in-transit', 'delivered', 'delayed')), weight REAL NOT NULL CHECK(weight >= 0), value REAL NOT NULL CHECK(value >= 0), eta TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS shipment_events (id TEXT PRIMARY KEY, shipment_id TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE, status TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, location TEXT NOT NULL, date TEXT NOT NULL);`);
 
 function rows() {
+  const shipments = db.prepare('SELECT id, tracking, customer, origin, origin_lat AS originLat, origin_lng AS originLng, destination, destination_lat AS destinationLat, destination_lng AS destinationLng, carrier, status, weight, value, eta, created_at AS createdAt, updated_at AS updatedAt FROM shipments ORDER BY updated_at DESC').all();
   return {
     revision: db.prepare("SELECT value FROM metadata WHERE key='revision'").get().value,
     suppliers: db.prepare('SELECT id, name, contact, phone, email, address FROM suppliers ORDER BY name').all(),
     products: db.prepare('SELECT id, name, sku, category, quantity, reorder_level AS reorder, cost, price, COALESCE(supplier_id, \'\') AS supplierId FROM products ORDER BY rowid DESC').all(),
     movements: db.prepare('SELECT id, product_id AS productId, type, quantity, balance, reference, notes, date FROM movements ORDER BY date DESC').all(),
-    regions: db.prepare('SELECT id, city, country, latitude, longitude, sales, units, status FROM sales_regions ORDER BY sales DESC').all()
+    regions: db.prepare('SELECT id, city, country, latitude, longitude, sales, units, status FROM sales_regions ORDER BY sales DESC').all(),
+    shipments: shipments.map(shipment => ({ ...shipment, origin: { label: shipment.origin, latitude: shipment.originLat, longitude: shipment.originLng }, destination: { label: shipment.destination, latitude: shipment.destinationLat, longitude: shipment.destinationLng }, events: db.prepare('SELECT id, status, title, detail, location, date FROM shipment_events WHERE shipment_id=? ORDER BY date DESC').all(shipment.id) }))
   };
 }
 function replaceInventory(payload) {
   if (!payload || !Array.isArray(payload.suppliers) || !Array.isArray(payload.products) || !Array.isArray(payload.movements)) throw new Error('Expected suppliers, products, and movements arrays.');
-  for (const collection of [payload.suppliers, payload.products, payload.movements, payload.regions || []]) {
+  for (const collection of [payload.suppliers, payload.products, payload.movements, payload.regions || [], payload.shipments || []]) {
     if (!Array.isArray(collection) || collection.length > 10000) throw new Error('Invalid collection size.');
     for (const item of collection) if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(item.id)) throw new Error('Invalid record ID.');
   }
@@ -71,18 +98,31 @@ function replaceInventory(payload) {
     if (![p.quantity,p.reorder].every(v=>Number.isSafeInteger(v)&&v>=0) || ![p.cost,p.price].every(v=>Number.isFinite(v)&&v>=0)) throw new Error('Invalid product quantity or price.');
   }
   for (const m of payload.movements) if (![m.quantity,m.balance].every(v=>Number.isSafeInteger(v)&&v>=0) || !Number.isFinite(Date.parse(m.date))) throw new Error('Invalid stock movement.');
+  const shipmentStatuses = new Set(['pending','in-transit','delivered','delayed']);
+  for (const s of (payload.shipments || [])) {
+    if (![s.tracking,s.customer,s.origin?.label,s.destination?.label,s.carrier,s.eta].every(v=>typeof v==='string' && v.trim() && v.length<=120)) throw new Error('Shipment tracking, customer, route, carrier and ETA are required.');
+    if (!shipmentStatuses.has(s.status) || ![s.weight,s.value].every(v=>Number.isFinite(v)&&v>=0) || ![s.origin?.latitude,s.origin?.longitude,s.destination?.latitude,s.destination?.longitude].every(v=>Number.isFinite(v))) throw new Error('Invalid shipment status, value, weight or coordinates.');
+    if (!Array.isArray(s.events) || s.events.length > 100) throw new Error('Invalid shipment event history.');
+    for (const event of s.events) if (!event || typeof event.id !== 'string' || !shipmentStatuses.has(event.status) || ![event.title,event.detail,event.location,event.date].every(v=>typeof v==='string' && v.trim() && v.length<=240) || !Number.isFinite(Date.parse(event.date))) throw new Error('Invalid shipment event.');
+  }
   const insertSupplier = db.prepare('INSERT INTO suppliers VALUES (?, ?, ?, ?, ?, ?)');
   const insertProduct = db.prepare('INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insertMovement = db.prepare('INSERT INTO movements VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   const insertRegion = db.prepare('INSERT INTO sales_regions VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertShipment = db.prepare('INSERT INTO shipments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertShipmentEvent = db.prepare('INSERT INTO shipment_events VALUES (?, ?, ?, ?, ?, ?, ?)');
   db.exec('BEGIN');
   try {
-    db.exec('DELETE FROM movements; DELETE FROM products; DELETE FROM suppliers;');
+    db.exec('DELETE FROM shipment_events; DELETE FROM shipments; DELETE FROM movements; DELETE FROM products; DELETE FROM suppliers;');
     if (payload.regions) db.exec('DELETE FROM sales_regions;');
     for (const s of payload.suppliers) insertSupplier.run(s.id, s.name, s.contact || '', s.phone || '', s.email || '', s.address || '');
     for (const p of payload.products) insertProduct.run(p.id, p.name, p.sku, p.category, p.quantity, p.reorder, p.cost, p.price, p.supplierId || null);
     for (const m of payload.movements) insertMovement.run(m.id, m.productId, m.type, m.quantity, m.balance, m.reference || '', m.notes || '', m.date);
     for (const region of (payload.regions || [])) insertRegion.run(region.id, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
+    for (const s of (payload.shipments || [])) {
+      insertShipment.run(s.id, s.tracking, s.customer, s.origin.label, s.origin.latitude, s.origin.longitude, s.destination.label, s.destination.latitude, s.destination.longitude, s.carrier, s.status, s.weight, s.value, s.eta, s.createdAt, s.updatedAt);
+      for (const event of s.events) insertShipmentEvent.run(event.id, s.id, event.status, event.title, event.detail, event.location, event.date);
+    }
     db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
   } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
@@ -94,9 +134,18 @@ if (!db.prepare('SELECT 1 FROM sales_regions LIMIT 1').get()) {
   const insertRegion = db.prepare('INSERT INTO sales_regions VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   for (const region of seed.regions) insertRegion.run(region.id, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
 }
+if (!db.prepare('SELECT 1 FROM shipments LIMIT 1').get()) {
+  const insertShipment = db.prepare('INSERT INTO shipments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertShipmentEvent = db.prepare('INSERT INTO shipment_events VALUES (?, ?, ?, ?, ?, ?, ?)');
+  for (const shipment of seed.shipments) {
+    insertShipment.run(shipment.id, shipment.tracking, shipment.customer, shipment.origin.label, shipment.origin.latitude, shipment.origin.longitude, shipment.destination.label, shipment.destination.latitude, shipment.destination.longitude, shipment.carrier, shipment.status, shipment.weight, shipment.value, shipment.eta, shipment.createdAt, shipment.updatedAt);
+    for (const event of shipment.events) insertShipmentEvent.run(event.id, shipment.id, event.status, event.title, event.detail, event.location, event.date);
+  }
+}
 
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('edition-3-20260913', 'Edition 3 — Clear workspace', 'New forest-green dashboard, larger readable text, sharp charts, database status and serialized saves. Added revision conflict protection, SQLite WAL, private-file protection and a domain/commercial launch guide.', '2026-09-13T12:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('globe-refresh-20260913', 'Distribution globe refresh', 'Rebuilt the sales globe with an orthographic spherical projection, geographic land shapes, atmospheric depth, clean route arcs, accessible region markers and a focused location callout.', '2026-09-13T13:00:00Z');
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('logistics-center-20260917', 'Logistics Center and shipment tracking', 'Added a database-backed shipping workspace with shipment KPIs, status filters, route map, tracking history, delivery activity and a create-shipment workflow.', '2026-09-17T09:00:00Z');
 function send(res, code, body, type = 'application/json') { res.writeHead(code, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); }
 function body(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) reject(new Error('Request body is too large.')); }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { reject(new Error('Invalid JSON.')); } }); }); }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };

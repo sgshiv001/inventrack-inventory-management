@@ -15,16 +15,21 @@ const get=async path=>fetch(`http://localhost:${port}${path}`);
 const put=async data=>fetch(`http://localhost:${port}/api/inventory`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 (async()=>{try{
  await start();const initial=await (await get('/api/inventory')).json();
+ assert.equal(initial.shipments.length,6);
  const changed=structuredClone(initial);changed.products[0].name='Persistence verification';
+ changed.shipments[0].status='delivered';
  assert.equal((await put(changed)).status,200);
  assert.equal((await put(initial)).status,409);
  const latest=await (await get('/api/inventory')).json();const invalid=structuredClone(latest);invalid.products[0].quantity=-1;
  assert.equal((await put(invalid)).status,400);
+ const invalidShipment=structuredClone(latest);invalidShipment.shipments[0].status='unknown';
+ assert.equal((await put(invalidShipment)).status,400);
  assert.equal((await (await get('/api/inventory')).json()).products.find(p=>p.name==='Persistence verification').quantity,changed.products[0].quantity);
+ assert.equal((await (await get('/api/inventory')).json()).shipments[0].status,'delivered');
  for(const url of ['/server.js','/data/inventrack.db','/.git/config'])assert.equal((await get(url)).status,404);
  assert.equal((await get('/workspace.css')).status,200);
  assert.ok((await (await get('/api/releases')).json()).length);
  await stop();await start();assert.ok((await (await get('/api/inventory')).json()).products.some(p=>p.name==='Persistence verification'));
- console.log('PASS: persistence, conflict protection, validation rollback, private files and release log.');
+ console.log('PASS: persistence, shipment validation, conflict protection, validation rollback, private files and release log.');
  }finally{if(child&&child.exitCode===null)await stop();rmSync(folder,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});
