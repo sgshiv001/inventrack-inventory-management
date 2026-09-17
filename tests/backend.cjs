@@ -13,6 +13,7 @@ async function start(){
 async function stop(){await new Promise(resolve=>{child.once('exit',resolve);child.kill();});}
 const get=async path=>fetch(`http://localhost:${port}${path}`);
 const put=async data=>fetch(`http://localhost:${port}/api/inventory`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+const post=async(path,data)=>fetch(`http://localhost:${port}${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 (async()=>{try{
  await start();const initial=await (await get('/api/inventory')).json();
  assert.equal(initial.shipments.length,6);
@@ -28,6 +29,7 @@ const put=async data=>fetch(`http://localhost:${port}/api/inventory`,{method:'PU
  assert.equal((await (await get('/api/inventory')).json()).shipments[0].status,'delivered');
  for(const url of ['/server.js','/data/inventrack.db','/.git/config'])assert.equal((await get(url)).status,404);
  for(const url of ['/assets/earth-texture.png','/assets/products/p1.png','/assets/suppliers/s1.png'])assert.equal((await get(url)).status,200);
+ const firstVisit=await post('/api/visits',{visitorId:'test-visitor-000001',path:'#analytics'});assert.equal(firstVisit.status,200);const firstVisitStats=await firstVisit.json();assert.equal(firstVisitStats.totalVisitors,1);assert.equal((await post('/api/visits',{visitorId:'test-visitor-000001',path:'#analytics'})).status,200);assert.equal((await (await get('/api/visits')).json()).totalVisitors,1);assert.equal((await post('/api/visits',{visitorId:'short',path:'#analytics'})).status,400);
  assert.equal((await get('/workspace.css')).status,200);
  assert.ok((await (await get('/api/releases')).json()).length);
  await stop();await start();assert.ok((await (await get('/api/inventory')).json()).products.some(p=>p.name==='Persistence verification'));

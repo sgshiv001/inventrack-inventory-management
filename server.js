@@ -74,7 +74,8 @@ db.exec(`PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS movements (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('in', 'out', 'adjustment')), quantity INTEGER NOT NULL CHECK(quantity >= 0), balance INTEGER NOT NULL CHECK(balance >= 0), reference TEXT, notes TEXT, date TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS sales_regions (id TEXT PRIMARY KEY, city TEXT NOT NULL, country TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, sales REAL NOT NULL CHECK(sales >= 0), units INTEGER NOT NULL CHECK(units >= 0), status TEXT NOT NULL CHECK(status IN ('healthy', 'watch', 'risk')));
   CREATE TABLE IF NOT EXISTS shipments (id TEXT PRIMARY KEY, tracking TEXT NOT NULL COLLATE NOCASE UNIQUE, customer TEXT NOT NULL, origin TEXT NOT NULL, origin_lat REAL NOT NULL, origin_lng REAL NOT NULL, destination TEXT NOT NULL, destination_lat REAL NOT NULL, destination_lng REAL NOT NULL, carrier TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending', 'in-transit', 'delivered', 'delayed')), weight REAL NOT NULL CHECK(weight >= 0), value REAL NOT NULL CHECK(value >= 0), eta TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS shipment_events (id TEXT PRIMARY KEY, shipment_id TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE, status TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, location TEXT NOT NULL, date TEXT NOT NULL);`);
+  CREATE TABLE IF NOT EXISTS shipment_events (id TEXT PRIMARY KEY, shipment_id TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE, status TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, location TEXT NOT NULL, date TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS visitor_events (visitor_id TEXT NOT NULL, visit_date TEXT NOT NULL, path TEXT NOT NULL, visited_at TEXT NOT NULL, PRIMARY KEY (visitor_id, visit_date));`);
 
 function rows() {
   const shipments = db.prepare('SELECT id, tracking, customer, origin, origin_lat AS originLat, origin_lng AS originLng, destination, destination_lat AS destinationLat, destination_lng AS destinationLng, carrier, status, weight, value, eta, created_at AS createdAt, updated_at AS updatedAt FROM shipments ORDER BY updated_at DESC').all();
@@ -86,6 +87,10 @@ function rows() {
     regions: db.prepare('SELECT id, city, country, latitude, longitude, sales, units, status FROM sales_regions ORDER BY sales DESC').all(),
     shipments: shipments.map(shipment => ({ ...shipment, origin: { label: shipment.origin, latitude: shipment.originLat, longitude: shipment.originLng }, destination: { label: shipment.destination, latitude: shipment.destinationLat, longitude: shipment.destinationLng }, events: db.prepare('SELECT id, status, title, detail, location, date FROM shipment_events WHERE shipment_id=? ORDER BY date DESC').all(shipment.id) }))
   };
+}
+function visitorStats() {
+  const stats = db.prepare("SELECT COUNT(DISTINCT visitor_id) AS totalVisitors, COUNT(DISTINCT CASE WHEN visit_date=date('now') THEN visitor_id END) AS todayVisitors, COUNT(DISTINCT CASE WHEN visit_date>=date('now','-6 day') THEN visitor_id END) AS weekVisitors FROM visitor_events").get();
+  return { totalVisitors: stats.totalVisitors, todayVisitors: stats.todayVisitors, weekVisitors: stats.weekVisitors };
 }
 function replaceInventory(payload) {
   if (!payload || !Array.isArray(payload.suppliers) || !Array.isArray(payload.products) || !Array.isArray(payload.movements)) throw new Error('Expected suppliers, products, and movements arrays.');
@@ -148,6 +153,7 @@ db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('globe-refr
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('logistics-center-20260917', 'Logistics Center and shipment tracking', 'Added a database-backed shipping workspace with shipment KPIs, status filters, route map, tracking history, delivery activity and a create-shipment workflow.', '2026-09-17T09:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visual-intelligence-20260917', '3D distribution and partner intelligence', 'Added a rotating 3D Earth model with country labels, territory and shipment routes, plus image-backed product portfolio cards and supplier partner profiles with market-value share and route context.', '2026-09-17T12:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('webgl-earth-20260917', 'Interactive WebGL Earth model', 'Replaced the flat globe renderer with a real textured WebGL sphere mesh. Added drag rotation, tilt, scroll zoom, reset controls, depth-tested lighting, and route overlays that reproject with the view.', '2026-09-17T13:30:00Z');
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visitor-counter-20260917', 'Visitor pulse counter', 'Added a privacy-friendly unique visitor counter backed by SQLite with daily de-duplication, a seven-day pulse, and a local fallback for the hosted static portfolio demo. No IP addresses or personal data are stored.', '2026-09-17T14:00:00Z');
 function send(res, code, body, type = 'application/json') { res.writeHead(code, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); }
 function body(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) reject(new Error('Request body is too large.')); }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { reject(new Error('Invalid JSON.')); } }); }); }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -163,6 +169,14 @@ http.createServer(async (req, res) => {
       replaceInventory(payload); return send(res, 200, rows());
     }
     if (url.pathname === '/api/releases' && req.method === 'GET') return send(res,200,db.prepare('SELECT * FROM release_log ORDER BY date DESC').all());
+    if (url.pathname === '/api/visits' && req.method === 'GET') return send(res,200,visitorStats());
+    if (url.pathname === '/api/visits' && req.method === 'POST') {
+      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const payload=await body(req),visitorId=String(payload.visitorId||'').trim(),pagePath=String(payload.path||'/').trim().slice(0,120);
+      if (!/^[a-zA-Z0-9_-]{16,80}$/.test(visitorId) || !/^#[a-zA-Z0-9_-]{1,40}$|^\/[a-zA-Z0-9_/?=&.-]{0,110}$/.test(pagePath)) return send(res,400,{error:'Invalid visitor payload.'});
+      const visitedAt=new Date().toISOString();db.prepare('INSERT OR IGNORE INTO visitor_events (visitor_id, visit_date, path, visited_at) VALUES (?, ?, ?, ?)').run(visitorId,visitedAt.slice(0,10),pagePath,visitedAt);
+      return send(res,200,visitorStats());
+    }
     if (url.pathname === '/api/health') return send(res, 200, { status: 'ok' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed.' });
     const requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
