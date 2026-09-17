@@ -106,7 +106,7 @@ erDiagram
 
 ## Visual intelligence layer
 
-- The distribution view renders an equirectangular Earth texture onto a canvas sphere, then animates a gentle rotation with pointer drag support.
+- The distribution view renders an actual WebGL sphere mesh with a local equirectangular Earth texture, depth-tested lighting, pointer rotation/tilt, scroll zoom, and reset controls. It does not depend on a flat globe image or a third-party rendering library.
 - A transparent SVG layer keeps country labels, sales-territory markers, curved shipment routes, route arrows, status colours, and accessible region selection crisp above the 3D model.
 - Product cards use curated catalogue thumbnails and expose on-hand units, market value, margin rate, supplier, and stock status together.
 - Supplier cards use partner portraits and calculate each partner's linked product lines, market-value share, route activity, and low-stock exposure from the current snapshot.

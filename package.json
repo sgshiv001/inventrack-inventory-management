@@ -1,6 +1,6 @@
 {
   "name": "inventrack",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "InvenTrack inventory management system with a Node.js and SQLite backend.",
   "scripts": {
