@@ -1,5 +1,7 @@
 const STORE_KEY = 'inventrack_mca_v1';
 const LEGACY_STORE_KEY = 'stockflow_inventory_v1';
+const API_BASE = String(window.INVENTRACK_API_BASE || '').replace(/\/$/,'');
+const api = (path,options) => fetch(`${API_BASE}${path}`,options);
 const rupees = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0});
 const shortDate = new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric'});
 
@@ -67,7 +69,7 @@ function save(){
   saveQueue=saveQueue.then(async()=>{
     if(!databaseReady)throw new Error('Database unavailable. Export your changes before reloading.');
     snapshot.revision=db.revision;
-    const response=await fetch('/api/inventory',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(10000)});
+    const response=await api('/api/inventory',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(10000)});
     if(!response.ok)throw new Error((await response.json()).error||'Database update failed.');
     const saved=await response.json();db.revision=saved.revision;
     localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');
@@ -77,13 +79,13 @@ function save(){
 }
 async function loadFromServer(){
   try{
-    const response=await fetch('/api/inventory',{signal:AbortSignal.timeout(10000)});
+    const response=await api('/api/inventory',{signal:AbortSignal.timeout(10000)});
     if(!response.ok)throw new Error('Could not load inventory.');
     db=await response.json();
     databaseReady=true;connection('Database connected','ready');
     localStorage.setItem(STORE_KEY,JSON.stringify(db));
     renderAll();renderEnhanced();
-    const releaseResponse=await fetch('/api/releases');
+    const releaseResponse=await api('/api/releases');
     if(releaseResponse.ok){releases=await releaseResponse.json();renderLogbook();}
   }catch(error){databaseReady=false;const hostedDemo=location.hostname.endsWith('.chatgpt.site')||location.protocol==='file:';connection(hostedDemo?'Demo mode · seeded data':'Offline · cached data',hostedDemo?'demo':'error');}
 }
@@ -97,7 +99,7 @@ function productFor(id){return db.products.find(p=>p.id===id)}
 function statusFor(p){return p.quantity===0?['Out of stock','out']:p.quantity<=p.reorder?['Low stock','low']:['In stock','good']}
 function visitorId(){try{let id=localStorage.getItem(VISITOR_ID_KEY);if(!id){id=crypto.randomUUID?.()||`visitor_${uid('v')}`;localStorage.setItem(VISITOR_ID_KEY,id)}return id}catch{return `visitor_${uid('v')}`}}
 function localVisitorFallback(){const today=new Date().toISOString().slice(0,10);let saved={};try{saved=JSON.parse(localStorage.getItem(VISITOR_FALLBACK_KEY)||'{}')}catch{}if(saved.lastVisit!==today){saved.totalVisitors=(Number(saved.totalVisitors)||0)+1;saved.todayVisitors=1;saved.lastVisit=today}else saved.todayVisitors=Math.max(1,Number(saved.todayVisitors)||1);saved.weekVisitors=Math.max(Number(saved.weekVisitors)||0,saved.todayVisitors);localStorage.setItem(VISITOR_FALLBACK_KEY,JSON.stringify(saved));return {totalVisitors:saved.totalVisitors,todayVisitors:saved.todayVisitors,weekVisitors:saved.weekVisitors}}
-async function registerVisitor(){try{const response=await fetch('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitorId:visitorId(),path:location.hash||'#dashboard'}),signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Visitor endpoint unavailable');visitorMetrics=await response.json()}catch{visitorMetrics=localVisitorFallback()}renderAnalytics()}
+async function registerVisitor(){try{const response=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitorId:visitorId(),path:location.hash||'#dashboard'}),signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Visitor endpoint unavailable');visitorMetrics=await response.json()}catch{visitorMetrics=localVisitorFallback()}renderAnalytics()}
 function parseCsv(text){
   const rows=[];let row=[],field='',quote=false;
   for(let i=0;i<text.length;i++){

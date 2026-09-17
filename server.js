@@ -5,6 +5,8 @@ const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '0.0.0.0';
+const CORS_ORIGIN = String(process.env.CORS_ORIGIN || '').replace(/\/$/,'');
 const ROOT = __dirname;
 const DB_PATH = path.resolve(process.env.DB_PATH || path.join(ROOT, 'data', 'inventrack.db'));
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -154,16 +156,19 @@ db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('logistics-
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visual-intelligence-20260917', '3D distribution and partner intelligence', 'Added a rotating 3D Earth model with country labels, territory and shipment routes, plus image-backed product portfolio cards and supplier partner profiles with market-value share and route context.', '2026-09-17T12:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('webgl-earth-20260917', 'Interactive WebGL Earth model', 'Replaced the flat globe renderer with a real textured WebGL sphere mesh. Added drag rotation, tilt, scroll zoom, reset controls, depth-tested lighting, and route overlays that reproject with the view.', '2026-09-17T13:30:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visitor-counter-20260917', 'Visitor pulse counter', 'Added a privacy-friendly unique visitor counter backed by SQLite with daily de-duplication, a seven-day pulse, and a local fallback for the hosted static portfolio demo. No IP addresses or personal data are stored.', '2026-09-17T14:00:00Z');
-function send(res, code, body, type = 'application/json') { res.writeHead(code, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); }
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('production-readiness-20260917', 'Production readiness foundation', 'Added runtime API-origin configuration, controlled CORS support for split hosting, environment templates, and a documented production checklist for authentication, organization isolation, backups, domain setup, and privacy.', '2026-09-17T15:00:00Z');
+function send(res, code, body, type = 'application/json') { const headers={ 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY' }; if(CORS_ORIGIN){headers['Access-Control-Allow-Origin']=CORS_ORIGIN;headers['Access-Control-Allow-Methods']='GET, PUT, POST, OPTIONS';headers['Access-Control-Allow-Headers']='Content-Type';headers.Vary='Origin'} res.writeHead(code, headers); res.end(type === 'application/json' ? JSON.stringify(body) : body); }
+function originAllowed(req) { const origin=req.headers.origin; if(!origin)return true; try { const requestOrigin=new URL(origin),hostOrigin=`${requestOrigin.protocol}//${req.headers.host}`; return origin===hostOrigin || (CORS_ORIGIN && origin===CORS_ORIGIN); } catch { return false; } }
 function body(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) reject(new Error('Request body is too large.')); }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { reject(new Error('Invalid JSON.')); } }); }); }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if(req.method==='OPTIONS'){if(!originAllowed(req))return send(res,403,{error:'Origin is not allowed.'});res.writeHead(204,CORS_ORIGIN?{'Access-Control-Allow-Origin':CORS_ORIGIN,'Access-Control-Allow-Methods':'GET, PUT, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Vary':'Origin'}:{});return res.end();}
     if (url.pathname === '/api/inventory' && req.method === 'GET') return send(res, 200, rows());
     if (url.pathname === '/api/inventory' && req.method === 'PUT') {
-      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
       const payload=await body(req);
       if (payload.revision !== rows().revision) return send(res,409,{error:'Inventory changed in another session. Reload before editing.'});
       replaceInventory(payload); return send(res, 200, rows());
@@ -171,7 +176,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/releases' && req.method === 'GET') return send(res,200,db.prepare('SELECT * FROM release_log ORDER BY date DESC').all());
     if (url.pathname === '/api/visits' && req.method === 'GET') return send(res,200,visitorStats());
     if (url.pathname === '/api/visits' && req.method === 'POST') {
-      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
       const payload=await body(req),visitorId=String(payload.visitorId||'').trim(),pagePath=String(payload.path||'/').trim().slice(0,120);
       if (!/^[a-zA-Z0-9_-]{16,80}$/.test(visitorId) || !/^#[a-zA-Z0-9_-]{1,40}$|^\/[a-zA-Z0-9_/?=&.-]{0,110}$/.test(pagePath)) return send(res,400,{error:'Invalid visitor payload.'});
       const visitedAt=new Date().toISOString();db.prepare('INSERT OR IGNORE INTO visitor_events (visitor_id, visit_date, path, visited_at) VALUES (?, ?, ?, ?)').run(visitorId,visitedAt.slice(0,10),pagePath,visitedAt);
@@ -181,9 +186,9 @@ http.createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed.' });
     const requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
     const publicAsset = /^(?:assets\/(?:products|suppliers)\/[a-z0-9_-]+\.png|assets\/(?:earth-texture|earth-globe|product-catalog|supplier-team)\.png)$/i.test(requested);
-    if (!['index.html','styles.css','workspace.css','app.js'].includes(requested) && !publicAsset) return send(res,404,'Not found','text/plain');
+    if (!['index.html','styles.css','workspace.css','app.js','runtime-config.js'].includes(requested) && !publicAsset) return send(res,404,'Not found','text/plain');
     const file = path.resolve(ROOT, requested);
     if (!file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return send(res, 404, 'Not found', 'text/plain');
     return send(res, 200, req.method === 'HEAD' ? '' : fs.readFileSync(file), mime[path.extname(file)] || 'application/octet-stream');
   } catch (error) { console.error(error); return send(res, 400, { error: error.message || 'Request failed.' }); }
-}).listen(PORT, () => console.log(`InvenTrack is running at http://localhost:${PORT}`));
+}).listen(PORT, HOST, () => console.log(`InvenTrack is running at http://localhost:${PORT}`));

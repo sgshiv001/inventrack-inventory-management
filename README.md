@@ -12,7 +12,9 @@ The project is a full-stack single-page application. The frontend is built with 
 
 The dashboard includes role-based workspaces for administrators, suppliers, distributors, retailers, and wholesalers. It also includes charts, business statistics, a sales-region globe, a log book, and a local data-aware chatbot for asking inventory questions.
 
-**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.4.0`
+**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.5.0`
+
+For the path from MCA submission to a paid pilot, follow the [production checklist](docs/PRODUCTION_CHECKLIST.md) and [launch guide](LAUNCH.md).
 
 ## Quick Start
 
@@ -78,7 +80,7 @@ These previews are useful on GitHub when the live demo is sleeping or unavailabl
 | **Programme** | Master of Computer Applications (MCA) |
 | **Course Component** | Academic Mini Project |
 | **Domain** | Inventory Management & Enterprise Information Systems |
-| **Version** | `2.4.0` (Visitor Pulse Release) |
+| **Version** | `2.5.0` (Production Readiness Release) |
 | **Academic Year** | 2026 |
 | **Persistence** | SQLite core database with `localStorage` used only as an offline browser backup and workspace preference store |
 | **Target Platforms** | Modern Chromium, Gecko, and WebKit Browsers (Desktop, Tablet, Mobile) |
@@ -203,7 +205,7 @@ The data layer models an operational supply chain using normalized entity relati
 * **Low-Stock Notification Center:** Interactive bell icon with dynamic badge count displaying real-time alert items requiring immediate procurement attention, featuring click-outside auto-dismissal.
 * **Dark / Light Theme Engine:** Persisted visual styling with high-contrast color variables conforming to modern accessibility standards.
 * **Executive Dashboard:** Clean professional dashboard with inventory value, market value, supplier/distributor summaries, stock readiness, and readable business charts.
-* **Visitor Pulse:** Admin-only summary card showing total unique visitors, today’s count, and the seven-day visitor pulse from the SQLite backend.
+* **Visitor Pulse:** Admin insights summary card showing total unique visitors, today’s count, and the seven-day visitor pulse from the SQLite backend.
 * **3D Distribution Intelligence:** A true WebGL Earth mesh with geographic texture, drag rotation, tilt, scroll zoom, reset controls, country labels, sales territories, shipment routes, status markers, route counts, growth signals, and regional business context.
 * **Product Portfolio View:** Visual catalogue cards backed by generated product imagery, stock status, market value, margin rate, supplier link, and detail actions.
 * **Shipping & Tracking Center:** Database-backed shipment records with delivery KPIs, status filters, activity heatmap, route map, tracking history, ETA visibility, and a create-shipment workflow.
@@ -221,7 +223,7 @@ The data layer models an operational supply chain using normalized entity relati
 
 The project was upgraded into a more complete full-stack management dashboard. The latest version includes a professional midnight-indigo interface with cyan and coral accents, larger readable labels, solid dashboard panels, sharp charts, visible database status, safer backend saving, SQLite WAL mode, and restricted static-file serving.
 
-The distribution globe now uses a real WebGL-rendered Earth mesh with an equirectangular texture, depth-tested lighting, drag rotation, tilt, scroll zoom, and reset/zoom controls. Country labels, territory arcs, shipment routes, route markers, growth signals, and regional order context sit above the model. The Product Portfolio adds visual catalogue cards with stock value and margin detail, while Supplier Network adds partner portraits, portfolio share, route activity, and risk context. The new Logistics Center adds shipment KPIs, status filters, a delivery activity heatmap, a route map, tracking history, ETA visibility, status progression, and database-backed shipment events. The Admin insights view now includes a privacy-friendly visitor pulse with daily de-duplication and a static-demo fallback. The Log book now shows database-backed product release notes, and the backend can be checked with:
+The distribution globe now uses a real WebGL-rendered Earth mesh with an equirectangular texture, depth-tested lighting, drag rotation, tilt, scroll zoom, and reset/zoom controls. Country labels, territory arcs, shipment routes, route markers, growth signals, and regional order context sit above the model. The Product Portfolio adds visual catalogue cards with stock value and margin detail, while Supplier Network adds partner portraits, portfolio share, route activity, and risk context. The new Logistics Center adds shipment KPIs, status filters, a delivery activity heatmap, a route map, tracking history, ETA visibility, status progression, and database-backed shipment events. The Admin insights view now includes a privacy-friendly visitor pulse with daily de-duplication and a static-demo fallback. Runtime API-origin configuration, controlled CORS, environment templates, and a commercial production checklist are included for the next deployment stage. The Log book now shows database-backed product release notes, and the backend can be checked with:
 
 ```bash
 node tests/backend.cjs
@@ -400,8 +402,10 @@ INVENTORY MANAGEMENT SYSTEM/
 ├── dist/                      # Self-contained read-only static portfolio demo
 ├── tools/
 │   └── inventory_report.py    # Python reporting and analytical script
+├── .env.example               # Safe deployment configuration template
 ├── .gitattributes             # Git line-ending and diff attributes
 ├── LAUNCH.md                  # Hosting, domain, and selling-readiness guide
+├── runtime-config.js          # Optional frontend-to-API origin setting
 ├── app.js                     # Core application logic, routing, persistence & UI handlers
 ├── index.html                 # Semantic application layouts, views, and modal dialogs
 ├── package.json               # Node.js start and development scripts

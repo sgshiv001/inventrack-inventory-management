@@ -5,7 +5,11 @@
 Install Node.js 24, open this folder in a terminal, and run `node server.js`.
 Open http://localhost:3000. SQLite creates and uses `data/inventrack.db` on this computer. No separate database service is required. The header reports whether the database is connected or whether changes were saved. Product updates are stored in `release_log`; browser workspace activity remains local to that browser.
 
+The Admin insights view records a daily unique visitor pulse through `/api/visits`. It uses a random browser ID, never stores IP addresses, and falls back to a device-local count in the static portfolio demo.
+
 Set `DB_PATH` to an absolute file path to choose a different database location. Set `PORT` to change the listening port. Use a local disk, not a network-synced folder. For a simple backup, stop the server cleanly and copy the entire `data` directory to a dated backup folder. Test restoring a copy before relying on backups. Never commit a customer database to Git.
+
+For a split frontend/API deployment, copy `.env.example`, set `CORS_ORIGIN` on the API, and set `window.INVENTRACK_API_BASE` in `runtime-config.js` to the API origin. Leave it blank when the frontend and API share one domain.
 
 ## Access from other places with a domain
 

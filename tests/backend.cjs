@@ -29,6 +29,7 @@ const post=async(path,data)=>fetch(`http://localhost:${port}${path}`,{method:'PO
  assert.equal((await (await get('/api/inventory')).json()).shipments[0].status,'delivered');
  for(const url of ['/server.js','/data/inventrack.db','/.git/config'])assert.equal((await get(url)).status,404);
  for(const url of ['/assets/earth-texture.png','/assets/products/p1.png','/assets/suppliers/s1.png'])assert.equal((await get(url)).status,200);
+ assert.equal((await get('/runtime-config.js')).status,200);
  const firstVisit=await post('/api/visits',{visitorId:'test-visitor-000001',path:'#analytics'});assert.equal(firstVisit.status,200);const firstVisitStats=await firstVisit.json();assert.equal(firstVisitStats.totalVisitors,1);assert.equal((await post('/api/visits',{visitorId:'test-visitor-000001',path:'#analytics'})).status,200);assert.equal((await (await get('/api/visits')).json()).totalVisitors,1);assert.equal((await post('/api/visits',{visitorId:'short',path:'#analytics'})).status,400);
  assert.equal((await get('/workspace.css')).status,200);
  assert.ok((await (await get('/api/releases')).json()).length);
