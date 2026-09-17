@@ -45,6 +45,8 @@ let db = load();
 let selectedRegionId='';
 let selectedShipmentId='sh1';
 let databaseReady=false, saveQueue=Promise.resolve(), releases=[];
+const VISITOR_ID_KEY='inventrack_visitor_id_v1',VISITOR_FALLBACK_KEY='inventrack_visitor_metrics_v1';
+let visitorMetrics=(()=>{try{const saved=JSON.parse(localStorage.getItem(VISITOR_FALLBACK_KEY)||'{}');return {totalVisitors:Number(saved.totalVisitors)||0,todayVisitors:Number(saved.todayVisitors)||0,weekVisitors:Number(saved.weekVisitors)||0}}catch{return {totalVisitors:0,todayVisitors:0,weekVisitors:0}}})();
 let globeAnimationFrame=0,globeRotation=0,globeTilt=0,globeZoom=1;
 function connection(message,state){const el=document.getElementById('connectionStatus');el.textContent=message;el.dataset.state=state;}
 const $ = id => document.getElementById(id);
@@ -93,6 +95,9 @@ function toast(message){const el=$('toast');el.textContent=message;el.classList.
 function initials(name){return name.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase()}
 function productFor(id){return db.products.find(p=>p.id===id)}
 function statusFor(p){return p.quantity===0?['Out of stock','out']:p.quantity<=p.reorder?['Low stock','low']:['In stock','good']}
+function visitorId(){try{let id=localStorage.getItem(VISITOR_ID_KEY);if(!id){id=crypto.randomUUID?.()||`visitor_${uid('v')}`;localStorage.setItem(VISITOR_ID_KEY,id)}return id}catch{return `visitor_${uid('v')}`}}
+function localVisitorFallback(){const today=new Date().toISOString().slice(0,10);let saved={};try{saved=JSON.parse(localStorage.getItem(VISITOR_FALLBACK_KEY)||'{}')}catch{}if(saved.lastVisit!==today){saved.totalVisitors=(Number(saved.totalVisitors)||0)+1;saved.todayVisitors=1;saved.lastVisit=today}else saved.todayVisitors=Math.max(1,Number(saved.todayVisitors)||1);saved.weekVisitors=Math.max(Number(saved.weekVisitors)||0,saved.todayVisitors);localStorage.setItem(VISITOR_FALLBACK_KEY,JSON.stringify(saved));return {totalVisitors:saved.totalVisitors,todayVisitors:saved.todayVisitors,weekVisitors:saved.weekVisitors}}
+async function registerVisitor(){try{const response=await fetch('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitorId:visitorId(),path:location.hash||'#dashboard'}),signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Visitor endpoint unavailable');visitorMetrics=await response.json()}catch{visitorMetrics=localVisitorFallback()}renderAnalytics()}
 function parseCsv(text){
   const rows=[];let row=[],field='',quote=false;
   for(let i=0;i<text.length;i++){
@@ -192,7 +197,7 @@ function renderSuppliers(){
 }
 function renderAnalytics(){
   const products=db.products,market=products.reduce((n,p)=>n+p.quantity*p.price,0),cost=products.reduce((n,p)=>n+p.quantity*p.cost,0),margin=market-cost,low=products.filter(p=>p.quantity<=p.reorder).length;
-  $('analyticsSummary').innerHTML=[['Market value',rupees.format(market),'Estimated current selling value'],['Gross opportunity',rupees.format(margin),'Potential margin on available stock'],['Supply risk',`${low} lines`,'Products at or below reorder level'],['Suppliers',db.suppliers.length,'Active supplier and distributor records']].map(([label,value,detail])=>`<article><span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('');
+  $('analyticsSummary').innerHTML=[['Market value',rupees.format(market),'Estimated current selling value'],['Gross opportunity',rupees.format(margin),'Potential margin on available stock'],['Supply risk',`${low} lines`,'Products at or below reorder level'],['Suppliers',db.suppliers.length,'Active supplier and distributor records'],['Visitors',Number(visitorMetrics.totalVisitors||0).toLocaleString('en-IN'),`${Number(visitorMetrics.todayVisitors||0).toLocaleString('en-IN')} today · ${Number(visitorMetrics.weekVisitors||0).toLocaleString('en-IN')} this week`]].map(([label,value,detail])=>`<article><span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('');
   const byCategory=Object.entries(products.reduce((result,p)=>{result[p.category]=(result[p.category]||0)+p.quantity*p.price;return result},{})).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...byCategory.map(([,n])=>n));
   $('categoryValueChart').innerHTML=byCategory.length?byCategory.map(([category,total])=>`<div class="insight-row"><div><strong>${escapeHtml(category)}</strong><span>${rupees.format(total)}</span></div><i><b style="width:${total/max*100}%"></b></i></div>`).join(''):'<div class="empty">Add products to view category value.</div>';
   const stats=db.suppliers.map(s=>{const items=products.filter(p=>p.supplierId===s.id);return {name:s.name,items,units:items.reduce((n,p)=>n+p.quantity,0),cost:items.reduce((n,p)=>n+p.quantity*p.cost,0),market:items.reduce((n,p)=>n+p.quantity*p.price,0),low:items.filter(p=>p.quantity<=p.reorder).length}}).sort((a,b)=>b.market-a.market);
@@ -425,6 +430,7 @@ renderEnhanced();
 showView(viewMeta[location.hash.slice(1)]?location.hash.slice(1):'dashboard');
 if(!workspace.role)$('welcomeDialog').showModal();
 loadFromServer();
+registerVisitor();
 $('connectionStatus').onclick=()=>{if(confirm('Reload the latest database records? Export CSV first if you have unsaved changes.'))loadFromServer();};
 
 /* Data-aware inventory assistant. It answers from the live database without sending

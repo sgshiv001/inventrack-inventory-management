@@ -80,6 +80,12 @@ erDiagram
     string location
     datetime date
   }
+  VISITOR_EVENTS {
+    string visitor_id PK
+    date visit_date PK
+    string path
+    datetime visited_at
+  }
 ```
 
 ## Backend safeguards
@@ -90,6 +96,7 @@ erDiagram
 - Full validation before a transaction is committed; invalid payloads roll back completely.
 - Same-origin protection for writes and a static-file allowlist that never exposes the database or server source.
 - HTML escaping at the rendering boundary for user-entered names, notes, suppliers, routes, and shipment events.
+- Visitor analytics stores a random browser visitor ID with a daily uniqueness key; IP addresses, cookies beyond the local ID, and personal data are not collected.
 
 ## Frontend modules
 
@@ -101,7 +108,7 @@ erDiagram
 | Stock movements | Auditable stock-in, stock-out, and adjustment ledger |
 | Suppliers | Partner records and contact links |
 | Shipping & tracking | Shipment KPIs, route view, event timeline, ETA, and status progression |
-| Admin insights | Sales-region globe, market value, supplier contribution, and risk |
+| Admin insights | Sales-region globe, market value, supplier contribution, risk, and visitor pulse |
 | Assistant | Local, data-aware answers without sending inventory data to an external AI service |
 
 ## Visual intelligence layer
