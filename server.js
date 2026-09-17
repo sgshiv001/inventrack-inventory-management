@@ -146,6 +146,7 @@ if (!db.prepare('SELECT 1 FROM shipments LIMIT 1').get()) {
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('edition-3-20260913', 'Edition 3 — Clear workspace', 'New forest-green dashboard, larger readable text, sharp charts, database status and serialized saves. Added revision conflict protection, SQLite WAL, private-file protection and a domain/commercial launch guide.', '2026-09-13T12:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('globe-refresh-20260913', 'Distribution globe refresh', 'Rebuilt the sales globe with an orthographic spherical projection, geographic land shapes, atmospheric depth, clean route arcs, accessible region markers and a focused location callout.', '2026-09-13T13:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('logistics-center-20260917', 'Logistics Center and shipment tracking', 'Added a database-backed shipping workspace with shipment KPIs, status filters, route map, tracking history, delivery activity and a create-shipment workflow.', '2026-09-17T09:00:00Z');
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visual-intelligence-20260917', '3D distribution and partner intelligence', 'Added a rotating 3D Earth model with country labels, territory and shipment routes, plus image-backed product portfolio cards and supplier partner profiles with market-value share and route context.', '2026-09-17T12:00:00Z');
 function send(res, code, body, type = 'application/json') { res.writeHead(code, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); }
 function body(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) reject(new Error('Request body is too large.')); }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { reject(new Error('Invalid JSON.')); } }); }); }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -164,7 +165,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/health') return send(res, 200, { status: 'ok' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed.' });
     const requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
-    if (!['index.html','styles.css','workspace.css','app.js'].includes(requested)) return send(res,404,'Not found','text/plain');
+    const publicAsset = /^(?:assets\/(?:products|suppliers)\/[a-z0-9_-]+\.png|assets\/(?:earth-texture|earth-globe|product-catalog|supplier-team)\.png)$/i.test(requested);
+    if (!['index.html','styles.css','workspace.css','app.js'].includes(requested) && !publicAsset) return send(res,404,'Not found','text/plain');
     const file = path.resolve(ROOT, requested);
     if (!file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return send(res, 404, 'Not found', 'text/plain');
     return send(res, 200, req.method === 'HEAD' ? '' : fs.readFileSync(file), mime[path.extname(file)] || 'application/octet-stream');

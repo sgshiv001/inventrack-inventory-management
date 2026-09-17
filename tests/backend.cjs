@@ -27,6 +27,7 @@ const put=async data=>fetch(`http://localhost:${port}/api/inventory`,{method:'PU
  assert.equal((await (await get('/api/inventory')).json()).products.find(p=>p.name==='Persistence verification').quantity,changed.products[0].quantity);
  assert.equal((await (await get('/api/inventory')).json()).shipments[0].status,'delivered');
  for(const url of ['/server.js','/data/inventrack.db','/.git/config'])assert.equal((await get(url)).status,404);
+ for(const url of ['/assets/earth-texture.png','/assets/products/p1.png','/assets/suppliers/s1.png'])assert.equal((await get(url)).status,200);
  assert.equal((await get('/workspace.css')).status,200);
  assert.ok((await (await get('/api/releases')).json()).length);
  await stop();await start();assert.ok((await (await get('/api/inventory')).json()).products.some(p=>p.name==='Persistence verification'));

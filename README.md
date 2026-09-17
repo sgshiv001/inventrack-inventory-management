@@ -12,7 +12,7 @@ The project is a full-stack single-page application. The frontend is built with 
 
 The dashboard includes role-based workspaces for administrators, suppliers, distributors, retailers, and wholesalers. It also includes charts, business statistics, a sales-region globe, a log book, and a local data-aware chatbot for asking inventory questions.
 
-**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.1.0`
+**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.2.0`
 
 ## Quick Start
 
@@ -78,7 +78,7 @@ These previews are useful on GitHub when the live demo is sleeping or unavailabl
 | **Programme** | Master of Computer Applications (MCA) |
 | **Course Component** | Academic Mini Project |
 | **Domain** | Inventory Management & Enterprise Information Systems |
-| **Version** | `2.1.0` (Executive Intelligence Release) |
+| **Version** | `2.2.0` (3D Distribution Intelligence Release) |
 | **Academic Year** | 2026 |
 | **Persistence** | SQLite core database with `localStorage` used only as an offline browser backup and workspace preference store |
 | **Target Platforms** | Modern Chromium, Gecko, and WebKit Browsers (Desktop, Tablet, Mobile) |
@@ -135,7 +135,7 @@ InvenTrack is a **full-stack Single-Page Application (SPA)**. Node.js serves the
 2. **Product Catalogue (`#products`):** Full CRUD catalogue management with multi-field search (Name, SKU, Category), category dropdown filter, and stock-status filter (Healthy, Low Stock, Out of Stock).
 3. **Reorder Planning Engine (`#reorder`):** Automated procurement analysis identifying all items at or below reorder threshold, calculating suggested order quantities and supplier-specific cost projections.
 4. **Stock Movement Ledger (`#movements`):** Immutable audit ledger recording every inventory adjustment, incoming supplier delivery, or customer dispatch with references, notes, timestamps, and updated balances.
-5. **Supplier Directory (`#suppliers`):** Contact cards for vendors, linked product counters, and direct communication links (`tel:`, `mailto:`).
+5. **Supplier Directory (`#suppliers`):** Image-backed partner profiles, linked product counters, portfolio share, route activity, and direct communication links (`tel:`, `mailto:`).
 6. **Shipping & Tracking Center (`#logistics`):** Shipment KPIs, delivery status filters, activity heatmap, route map, tracking event timeline, ETA visibility, and a create/advance shipment workflow.
 7. **Audit Log Book (`#logbook`):** Central operational timeline recording user interactions, data mutations, and workspace configuration changes with role context.
 8. **Project Documentation & Demo Reset (`#about`):** Overview of academic goals, technology stack, entity relationship diagrams, and an instant demo-data reset mechanism for presentations.
@@ -202,7 +202,8 @@ The data layer models an operational supply chain using normalized entity relati
 * **Low-Stock Notification Center:** Interactive bell icon with dynamic badge count displaying real-time alert items requiring immediate procurement attention, featuring click-outside auto-dismissal.
 * **Dark / Light Theme Engine:** Persisted visual styling with high-contrast color variables conforming to modern accessibility standards.
 * **Executive Dashboard:** Clean professional dashboard with inventory value, market value, supplier/distributor summaries, stock readiness, and readable business charts.
-* **Sales Region Globe:** Interactive world-sales visualization showing where products are selling and where expansion opportunities are available.
+* **3D Distribution Intelligence:** A rotating, drag-friendly Earth model with a geographic texture, country labels, sales territories, shipment routes, status markers, route counts, growth signals, and regional business context.
+* **Product Portfolio View:** Visual catalogue cards backed by generated product imagery, stock status, market value, margin rate, supplier link, and detail actions.
 * **Shipping & Tracking Center:** Database-backed shipment records with delivery KPIs, status filters, activity heatmap, route map, tracking history, ETA visibility, and a create-shipment workflow.
 * **Local Inventory Assistant:** Built-in chatbot that answers inventory questions from the current database without sending stock data to a third-party AI service.
 * **Dual-Direction CSV Engine:**
@@ -218,7 +219,7 @@ The data layer models an operational supply chain using normalized entity relati
 
 The project was upgraded into a more complete full-stack management dashboard. The latest version includes a professional midnight-indigo interface with cyan and coral accents, larger readable labels, solid dashboard panels, sharp charts, visible database status, safer backend saving, SQLite WAL mode, and restricted static-file serving.
 
-The distribution globe was rebuilt with a cleaner orthographic world projection, land shapes, route arcs, status markers, region selection, and clearer business labels. The new Logistics Center adds shipment KPIs, status filters, a delivery activity heatmap, a route map, tracking history, ETA visibility, status progression, and database-backed shipment events. The Log book now shows database-backed product release notes, and the backend can be checked with:
+The distribution globe now uses a realistic equirectangular Earth texture rendered onto a rotating 3D sphere. Country labels, territory arcs, shipment routes, route markers, growth signals, and regional order context sit above the model. The Product Portfolio adds visual catalogue cards with stock value and margin detail, while Supplier Network adds partner portraits, portfolio share, route activity, and risk context. The new Logistics Center adds shipment KPIs, status filters, a delivery activity heatmap, a route map, tracking history, ETA visibility, status progression, and database-backed shipment events. The Log book now shows database-backed product release notes, and the backend can be checked with:
 
 ```bash
 node tests/backend.cjs
@@ -239,6 +240,7 @@ Initial Prototype      Workflow Overhaul      CSV Import & Tooling      Workspac
 2026-09-17
 - Midnight-indigo theme     - Logistics Center workspace - Shipment route map
 - Shipment event timeline   - Create/advance delivery status - Shipment schema and seed data
+- 3D Earth distribution     - Product portfolio imagery     - Supplier partner profiles
 ```
 
 ### Detailed Evolution Timeline
@@ -383,12 +385,17 @@ INVENTORY MANAGEMENT SYSTEM/
 ├── reports/
 │   ├── inventory.csv          # Sample generated CSV inventory report
 │   └── summary.md             # Sample generated Markdown inventory summary
+├── assets/
+│   ├── earth-texture.png      # Equirectangular texture used by the 3D Earth model
+│   ├── products/               # Curated product catalogue thumbnails
+│   └── suppliers/              # Supplier partner profile portraits
 ├── docs/
 │   ├── ARCHITECTURE.md        # System, data-flow, deployment, and design decisions
 │   ├── PORTFOLIO.md           # Two-minute demo route and interview talking points
 │   └── screenshots/           # GitHub-friendly scalable interface previews
 ├── tests/
 │   └── backend.cjs            # Backend persistence and API safety checks
+├── dist/                      # Self-contained read-only static portfolio demo
 ├── tools/
 │   └── inventory_report.py    # Python reporting and analytical script
 ├── .gitattributes             # Git line-ending and diff attributes

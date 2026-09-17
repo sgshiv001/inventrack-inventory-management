@@ -104,6 +104,13 @@ erDiagram
 | Admin insights | Sales-region globe, market value, supplier contribution, and risk |
 | Assistant | Local, data-aware answers without sending inventory data to an external AI service |
 
+## Visual intelligence layer
+
+- The distribution view renders an equirectangular Earth texture onto a canvas sphere, then animates a gentle rotation with pointer drag support.
+- A transparent SVG layer keeps country labels, sales-territory markers, curved shipment routes, route arrows, status colours, and accessible region selection crisp above the 3D model.
+- Product cards use curated catalogue thumbnails and expose on-hand units, market value, margin rate, supplier, and stock status together.
+- Supplier cards use partner portraits and calculate each partner's linked product lines, market-value share, route activity, and low-stock exposure from the current snapshot.
+
 ## Deployment boundary
 
 The local Node.js + SQLite server is the complete academic demonstration. A hosted portfolio demo can run as a static snapshot using the browser's seeded fallback data. A commercial multi-tenant release should move the API to a managed Node-compatible host, migrate SQLite to PostgreSQL, add authentication and organization isolation, and configure backups before accepting customer data.

@@ -124,6 +124,10 @@
           <select id="stockFilter" aria-label="Filter by stock"><option value="">All stock levels</option><option value="low">Low stock</option><option value="out">Out of stock</option><option value="healthy">Healthy stock</option></select>
           <button class="btn primary" id="addProductBtn">+ Add product</button>
         </div>
+        <section class="product-showcase" aria-labelledby="productShowcaseTitle">
+          <div class="showcase-head"><div><span class="eyebrow">CATALOGUE VISUALS</span><h2 id="productShowcaseTitle">Product portfolio</h2><p>See the items behind your stock value, margin, and replenishment decisions.</p></div><span class="showcase-note">Curated demo catalogue</span></div>
+          <div class="product-showcase-grid" id="productShowcase"></div>
+        </section>
         <article class="panel table-panel">
           <div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Stock</th><th>Cost</th><th>Price</th><th>Value</th><th>Margin</th><th>Supplier</th><th>Status</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div>
           <div class="table-footer" id="productCount"></div>
@@ -151,6 +155,10 @@
 
       <section class="view" id="suppliersView">
         <div class="toolbar end"><button class="btn primary" id="addSupplierBtn">+ Add supplier</button></div>
+        <section class="supplier-summary" aria-labelledby="supplierSummaryTitle">
+          <div class="showcase-head"><div><span class="eyebrow">PARTNER INTELLIGENCE</span><h2 id="supplierSummaryTitle">Supplier network</h2><p>Understand who is powering your catalogue and how much business each partner supports.</p></div><span class="showcase-note">Live from inventory records</span></div>
+          <div class="supplier-summary-grid" id="supplierSummary"></div>
+        </section>
         <div class="supplier-grid" id="supplierGrid"></div>
       </section>
 
