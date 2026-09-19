@@ -1,0 +1,64 @@
+/* One viewport for the WebGL globe and its geographic vector overlay. */
+.distribution-command{display:grid;grid-template-columns:minmax(0,1fr) 280px;min-height:0;background:#0c1423;border:1px solid #253247;border-radius:14px;box-shadow:none;color:#f1f5fb}
+.distribution-command .distribution-stats{grid-column:1/-1;padding:24px;background:#111c2d;border:0;border-bottom:1px solid #283548}
+.distribution-stats .eyebrow{color:#aeb2ff;font-size:12px;letter-spacing:.12em}
+.distribution-stats h3{font-size:22px;margin:8px 0}
+.distribution-stats>p{font-size:14px;color:#b5c2d3;margin:0 0 18px}
+.distribution-command #distributionStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.distribution-stats article{border:0;border-left:2px solid #394761;padding:0 0 0 14px;gap:5px}
+.distribution-stats article span{font-size:14px;color:#c2cddd}
+.distribution-stats article strong{font-size:25px;letter-spacing:-.03em;color:#f4f7ff}
+.distribution-stats article small{font-size:12px;color:#a4b2c7;line-height:1.5}
+.distribution-stats .data-note{display:none}
+.distribution-command .globe-stage{display:block;height:auto;min-height:0;background:#0b1422;position:relative;isolation:isolate;overflow:hidden}
+.globe-stage:before{display:none}
+.earth-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 0;position:relative;z-index:3}
+.earth-heading{font-size:14px;color:#c2cede;font-weight:600}
+.earth-layers,.earth-navigation{display:flex;align-items:center;gap:6px}
+.earth-layers button,.earth-navigation button{border:1px solid #39445b;background:#152237;color:#cbd5e5;border-radius:7px;min-height:36px;padding:7px 11px;font:600 13px/1.2 inherit;cursor:pointer}
+.earth-layers button[aria-pressed=true]{color:#f0edff;background:#363255;border-color:#696097}
+.earth-layers button:hover,.earth-navigation button:hover{border-color:#aeb2ff;color:#fff}
+.earth-navigation button:disabled,.earth-layers button:disabled{opacity:.4;cursor:default}
+.earth-viewport{height:460px;position:relative;overflow:hidden;margin:0;background:radial-gradient(ellipse at center,#16273c 0%,#0b1422 68%)}
+.earth-model{display:block;width:100%;height:100%;touch-action:none;cursor:grab;position:absolute;inset:0}
+.earth-model.dragging{cursor:grabbing}
+.globe-stage .earth-labels{position:absolute;inset:0;width:100%;height:100%;min-height:0;overflow:hidden;pointer-events:none;z-index:2}
+.earth-limb{fill:none;stroke:#a7c6ea;stroke-width:1;stroke-opacity:.5}
+.earth-borders{fill:none;stroke:#edf1fa;stroke-width:.55;stroke-opacity:.45;stroke-linejoin:round}
+.earth-route{fill:none;stroke:#9eb9ff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.95}
+.earth-route.pending{stroke:#edc982;stroke-dasharray:4 4}
+.earth-route.delivered{stroke:#a3adbd;stroke-width:1.2;opacity:.7}
+.earth-route.delayed{stroke:#ff9484}
+.earth-country{font:600 12px/1 system-ui,sans-serif;letter-spacing:.04em;fill:#e5ecf5;paint-order:stroke;stroke:#101d2c;stroke-width:2.5;stroke-linejoin:round}
+.earth-node{pointer-events:all;cursor:pointer}
+.earth-hit{fill:transparent}
+.earth-pin{fill:#bccaff;stroke:#0e1630;stroke-width:1.5}
+.earth-ring{fill:none;stroke:#fff;stroke-width:1.5}
+.earth-node.selected .earth-pin,.earth-node:hover .earth-pin{fill:#fff}
+.earth-message{position:absolute;inset:40% 10% auto;text-align:center;background:#152237;padding:16px;border-radius:8px;font-size:14px;color:#dae3ef;z-index:3}
+.earth-message[hidden]{display:none}
+.earth-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 20px 15px}
+.earth-selection strong{font-size:15px;display:block;color:#fff}
+.earth-selection strong span{font-weight:400;color:#b5c2d3}
+.earth-selection small{display:block;font-size:13px;color:#aebccd;margin-top:5px}
+.earth-caption{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid #263348;color:#aebccd;font-size:12px}
+.earth-legend{display:flex;flex-wrap:wrap;gap:14px;padding:0 20px 12px;color:#c1cada;font-size:12px}
+.earth-legend span:before{content:'';display:inline-block;width:15px;border-top:2px solid #9eb9ff;margin-right:6px;vertical-align:middle}
+.earth-legend .pending:before{border-color:#edc982;border-top-style:dashed}.earth-legend .delivered:before{border-color:#a3adbd}.earth-legend .delayed:before{border-color:#ff9484}
+.earth-credit{font-size:12px;color:#8e9db4;padding:0 20px 16px}
+.earth-credit a{color:#aebed4;text-underline-offset:3px}
+.distribution-command .region-feed{display:block;grid-column:auto;background:#101a2b;border:0;border-left:1px solid #283548}
+.region-feed .panel-head{padding:22px 18px;border:0}
+.region-feed .panel-head h2{font-size:17px}.region-feed .panel-head p{font-size:13px;line-height:1.5;color:#aebccd}
+.distribution-command #regionFeed{display:block}
+.region-feed .region-item{grid-template-columns:minmax(0,1fr) auto;padding:18px 16px;gap:8px;border-top:1px solid #263348;border-left:3px solid transparent;min-height:77px}
+.region-feed .region-item.active{background:#222944;border-left-color:#a9a0fc}
+.region-feed .region-item:hover{background:#202b42}
+.region-feed .region-item strong,.region-feed .region-item b{font-size:14px;color:#f1f5fb}
+.region-feed .region-item small{font-size:12px;font-weight:400;color:#aebccd;margin-top:5px}
+.region-feed .region-item b{text-align:right}
+.distribution-command button:focus-visible,.earth-model:focus-visible,.earth-node:focus-visible{outline:2px solid #cec5ff;outline-offset:-3px}
+@media(min-width:1500px){.earth-viewport{height:520px}}
+@media(max-width:1000px){.distribution-command{grid-template-columns:minmax(0,1fr) 250px}.earth-toolbar,.earth-footer{padding-left:14px;padding-right:14px}.earth-footer{flex-wrap:wrap}.earth-viewport{height:410px}}
+@media(max-width:760px){.distribution-command{display:block}.distribution-command #distributionStats{grid-template-columns:repeat(2,minmax(0,1fr))}.distribution-command .region-feed{border-left:0;border-top:1px solid #283548}.distribution-command #regionFeed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.earth-viewport{height:420px}.distribution-stats article strong{font-size:23px}}
+@media(max-width:450px){.distribution-command .distribution-stats{padding:18px}.distribution-command #distributionStats{gap:18px 10px}.earth-viewport{height:340px}.earth-toolbar{align-items:flex-start;flex-wrap:wrap}.earth-caption,.earth-legend,.earth-credit{padding-left:14px;padding-right:14px}.distribution-command #regionFeed{display:block}.earth-footer{align-items:flex-start}.earth-country{font-size:12px}}
