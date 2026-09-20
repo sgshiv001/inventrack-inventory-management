@@ -12,7 +12,9 @@ The project is a full-stack single-page application. The frontend is built with 
 
 The dashboard includes role-based workspaces for administrators, suppliers, distributors, retailers, and wholesalers. It also includes charts, business statistics, a sales-region globe, a log book, and a local data-aware chatbot for asking inventory questions.
 
-**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.5.0`
+The local demo remains frictionless by default. Production deployments can enable the built-in session authentication layer with `AUTH_REQUIRED=true`; authenticated records are scoped to an organization and inventory writes are limited to administrators and wholesalers.
+
+**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.6.0`
 
 For the path from MCA submission to a paid pilot, follow the [production checklist](docs/PRODUCTION_CHECKLIST.md) and [launch guide](LAUNCH.md).
 
@@ -33,7 +35,7 @@ http://localhost:3000
 Run backend checks:
 
 ```bash
-node tests/backend.cjs
+npm test
 ```
 
 See [LAUNCH.md](LAUNCH.md) for domain hosting, deployment, database notes, and the remaining work needed before selling it as a live customer subscription product.
@@ -80,7 +82,7 @@ These previews are useful on GitHub when the live demo is sleeping or unavailabl
 | **Programme** | Master of Computer Applications (MCA) |
 | **Course Component** | Academic Mini Project |
 | **Domain** | Inventory Management & Enterprise Information Systems |
-| **Version** | `2.5.0` (Production Readiness Release) |
+| **Version** | `2.6.0` (Secure Pilot Foundation Release) |
 | **Academic Year** | 2026 |
 | **Persistence** | SQLite core database with `localStorage` used only as an offline browser backup and workspace preference store |
 | **Target Platforms** | Modern Chromium, Gecko, and WebKit Browsers (Desktop, Tablet, Mobile) |
@@ -219,15 +221,17 @@ The data layer models an operational supply chain using normalized entity relati
 
 ## Changelog & Chronological Development
 
-### Latest Project Update - September 17, 2026
+### Latest Project Update - September 20, 2026
 
 The project was upgraded into a more complete full-stack management dashboard. The latest version includes a professional midnight-indigo interface with cyan and coral accents, larger readable labels, solid dashboard panels, sharp charts, visible database status, safer backend saving, SQLite WAL mode, and restricted static-file serving.
 
 The distribution globe now uses a real WebGL-rendered Earth mesh with an equirectangular texture, depth-tested lighting, drag rotation, tilt, scroll zoom, and reset/zoom controls. Country labels, territory arcs, shipment routes, route markers, growth signals, and regional order context sit above the model. The Product Portfolio adds visual catalogue cards with stock value and margin detail, while Supplier Network adds partner portraits, portfolio share, route activity, and risk context. The new Logistics Center adds shipment KPIs, status filters, a delivery activity heatmap, a route map, tracking history, ETA visibility, status progression, and database-backed shipment events. The Admin insights view now includes a privacy-friendly visitor pulse with daily de-duplication and a static-demo fallback. Runtime API-origin configuration, controlled CORS, environment templates, and a commercial production checklist are included for the next deployment stage. The Log book now shows database-backed product release notes, and the backend can be checked with:
 
 ```bash
-node tests/backend.cjs
+npm test
 ```
+
+Version 2.6.0 adds optional scrypt-backed login, expiring HTTP-only sessions, server-side admin/wholesaler/retailer enforcement, organization-scoped inventory records, migration coverage for existing SQLite databases, protected browser flows, and a GitHub Actions test workflow. Demo mode remains available when `AUTH_REQUIRED=false`.
 
 This project was developed incrementally through continuous feature additions, performance refinements, and code quality audits:
 
@@ -245,6 +249,9 @@ Initial Prototype      Workflow Overhaul      CSV Import & Tooling      Workspac
 - Midnight-indigo theme     - Logistics Center workspace - Shipment route map
 - Shipment event timeline   - Create/advance delivery status - Shipment schema and seed data
 - 3D Earth distribution     - Product portfolio imagery     - Supplier partner profiles
+2026-09-20
+- Optional protected pilot mode - Organization-scoped records - Authentication tests
+- HTTP-only sessions          - Server-side role checks       - CI syntax and test workflow
 ```
 
 ### Detailed Evolution Timeline
@@ -354,7 +361,11 @@ The hosted demo uses the same static package and seeded data. The full-stack Nod
 
 ### Full-stack mode
 
-To make it accessible outside localhost, deploy the Node.js server to a hosting platform such as Render, Railway, Fly.io, a VPS, or another Node-compatible host. A custom domain can then point to that hosted server. For a production business version, the next required additions are real customer login, organization isolation, payment/billing, backups, and stronger database hosting such as PostgreSQL.
+To make it accessible outside localhost, deploy the Node.js server to a hosting platform such as Render, Railway, Fly.io, a VPS, or another Node-compatible host. A custom domain can then point to that hosted server. For a production business version, the next required additions are user administration, password recovery, payment/billing, backups, monitoring, and stronger database hosting such as PostgreSQL.
+
+### Protected deployment
+
+Copy `.env.example` to `.env` or configure equivalent platform environment variables. Set `AUTH_REQUIRED=true`, provide `ADMIN_EMAIL`, and set a strong `ADMIN_PASSWORD` of at least 12 characters. The first startup creates the bootstrap administrator in the demo organization. The API then requires an HTTP-only session cookie for inventory and release-log access; retailers can read data, while administrators and wholesalers can write it. The current implementation provides a secure single-organization pilot foundation; add user administration, password recovery, and a managed identity provider before offering self-service accounts.
 
 See [LAUNCH.md](LAUNCH.md) for the detailed deployment path.
 

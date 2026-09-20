@@ -13,6 +13,7 @@ flowchart LR
 
   Browser -->|GET /api/inventory| API
   Browser -->|PUT /api/inventory\nrevision checked| API
+  Browser -->|POST /api/auth/login\nHTTP-only session| API
   API -->|transactional reads/writes| DB
   API -->|release notes| Log
   Browser -->|local preferences\nand offline backup| Local[(localStorage)]
@@ -24,10 +25,11 @@ The browser owns the interactive workspace and renders the dashboard, inventory 
 
 1. The browser requests `GET /api/inventory` when the page opens.
 2. The server returns a revision number and the related collections: suppliers, products, movements, sales regions, shipments, and shipment events.
-3. A user action updates the in-memory workspace immediately so the interface stays responsive.
-4. The browser sends the complete snapshot with the revision it last loaded.
-5. The server rejects stale revisions with `409 Conflict`, validates IDs and business values, then replaces the snapshot inside one SQLite transaction.
-6. The server returns the new revision; the browser marks the database as synced and records the confirmation in the local activity log.
+3. When `AUTH_REQUIRED=true`, the browser signs in through `/api/auth/login` and sends the resulting HTTP-only session cookie with API requests.
+4. A user action updates the in-memory workspace immediately so the interface stays responsive.
+5. The browser sends the complete snapshot with the revision it last loaded.
+6. The server authenticates the session, checks the organization and role, rejects stale revisions with `409 Conflict`, validates IDs and business values, then replaces the snapshot inside one SQLite transaction.
+7. The server returns the new revision; the browser marks the database as synced and records the confirmation in the local activity log.
 
 ## Data relationships
 
@@ -36,15 +38,19 @@ erDiagram
   SUPPLIERS ||--o{ PRODUCTS : supplies
   PRODUCTS ||--o{ MOVEMENTS : records
   SHIPMENTS ||--o{ SHIPMENT_EVENTS : contains
+  ORGANIZATIONS ||--o{ USERS : contains
+  ORGANIZATIONS ||--o{ PRODUCTS : owns
 
   SUPPLIERS {
     string id PK
+    string organization_id FK
     string name
     string contact
     string email
   }
   PRODUCTS {
     string id PK
+    string organization_id FK
     string sku UK
     string category
     int quantity
@@ -86,6 +92,18 @@ erDiagram
     string path
     datetime visited_at
   }
+  ORGANIZATIONS {
+    string id PK
+    string name
+    datetime created_at
+  }
+  USERS {
+    string id PK
+    string organization_id FK
+    string email
+    string role
+    datetime created_at
+  }
 ```
 
 ## Backend safeguards
@@ -93,6 +111,7 @@ erDiagram
 - SQLite foreign keys, `CHECK` constraints, unique SKUs, and unique tracking IDs.
 - WAL mode and a busy timeout for safer local concurrent reads and writes.
 - Revision-based conflict protection for two browser sessions editing the same workspace.
+- Optional scrypt password hashing, expiring HTTP-only sessions, server-side role checks, and organization-scoped business records when authentication is enabled.
 - Full validation before a transaction is committed; invalid payloads roll back completely.
 - Same-origin protection for writes and a static-file allowlist that never exposes the database or server source.
 - HTML escaping at the rendering boundary for user-entered names, notes, suppliers, routes, and shipment events.

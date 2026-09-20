@@ -1,12 +1,12 @@
 {
   "name": "inventrack",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "private": true,
   "description": "InvenTrack inventory management system with a Node.js and SQLite backend.",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test tests/globe.cjs && node tests/backend.cjs"
+    "test": "node --test tests/globe.cjs && node tests/backend.cjs && node tests/auth.cjs"
   },
   "engines": {
     "node": ">=22.5.0"

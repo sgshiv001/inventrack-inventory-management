@@ -48,6 +48,7 @@
         </div>
         <div class="topbar-actions">
           <button class="connection-status" id="connectionStatus" type="button" title="Reload inventory from database">Connecting…</button>
+          <button type="button" class="btn secondary auth-button" id="authButton" hidden>Sign in</button>
           <button type="button" class="role-chip" id="roleChip" title="Change workspace role" aria-label="Change workspace role">Admin workspace</button>
           <button class="icon-btn theme-toggle" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">&#9790;</button>
           <button class="icon-btn notification-btn" id="notificationBtn" title="Open notifications" aria-label="Open notifications">&#128276;<b id="notificationCount">0</b></button>
@@ -226,7 +227,7 @@
               <span>HTML5</span><span>CSS3</span><span>JavaScript</span><span>Node.js</span><span>SQLite</span>
             </div>
           </div>
-          <div class="project-mark" aria-hidden="true"><strong>IT</strong><span>v2.4</span></div>
+          <div class="project-mark" aria-hidden="true"><strong>IT</strong><span>v2.6</span></div>
         </article>
 
         <div class="project-grid">
@@ -325,6 +326,19 @@
         <button type="button" class="role-option" data-role="admin"><strong>Administrator</strong><span>Oversee operations, audit activity, and configure the workspace.</span></button>
       </div>
       <div class="dialog-actions"><button class="btn secondary" type="button" id="skipWelcomeBtn">Use default admin</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="authDialog" class="auth-dialog">
+    <form method="dialog" id="authForm">
+      <div class="welcome-kicker">SECURE WORKSPACE</div>
+      <div class="dialog-head"><div><h2>Sign in to InvenTrack</h2><p>Use the account configured for this organization.</p></div></div>
+      <div class="form-grid">
+        <label class="wide">Email<input id="authEmail" type="email" autocomplete="username" required maxlength="254" placeholder="admin@example.com"></label>
+        <label class="wide">Password<input id="authPassword" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
+      </div>
+      <p class="form-error" id="authError" role="alert"></p>
+      <div class="dialog-actions"><button class="btn primary" value="default" id="authSubmit">Sign in</button></div>
     </form>
   </dialog>
 

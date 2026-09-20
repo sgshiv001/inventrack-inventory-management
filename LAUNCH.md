@@ -2,8 +2,10 @@
 
 ## Run on your computer
 
-Install Node.js 24, open this folder in a terminal, and run `node server.js`.
+Install Node.js 24, open this folder in a terminal, and run `node server.js`. If you keep local settings in a `.env` file, use `node --env-file-if-exists=.env server.js`; hosting platforms should provide the same values through their environment configuration.
 Open http://localhost:3000. SQLite creates and uses `data/inventrack.db` on this computer. No separate database service is required. The header reports whether the database is connected or whether changes were saved. Product updates are stored in `release_log`; browser workspace activity remains local to that browser.
+
+For an unprotected academic demo, leave `AUTH_REQUIRED=false`. For a protected pilot, set `AUTH_REQUIRED=true`, `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` (at least 12 characters). The first startup creates the bootstrap administrator. Authenticated sessions use HTTP-only cookies, inventory data is scoped to the user's organization, and only administrators or wholesalers can write inventory snapshots.
 
 The Admin insights view records a daily unique visitor pulse through `/api/visits`. It uses a random browser ID, never stores IP addresses, and falls back to a device-local count in the static portfolio demo.
 
@@ -30,18 +32,18 @@ No hosting account, paid service or domain has been purchased or deployed by thi
 
 ## Before charging customers
 
-This is currently a single-workspace prototype, not a finished subscription service. The role selector changes the workspace label; it does not authenticate users or enforce permissions. The API currently has no login protection. Do not put real customer data on a public deployment yet.
+This is a single-organization pilot foundation, not a finished self-service subscription service. Authentication and server-side role enforcement are available when enabled, but there is no user-management screen, password recovery, billing integration, or multi-organization onboarding. Do not put real customer data on a public deployment until the hosting, backup, privacy, and support controls below are in place.
 
-Implement and test these before launch:
+Implement and test these before a broader launch:
 
-- User registration, secure login, password recovery and server-enforced roles.
-- Separate organizations and database access so one customer cannot read or overwrite another customer's records. Test this at every endpoint.
+- User registration, password recovery, account lockout/rate limiting, and a managed identity provider.
+- A tested organization provisioning flow and ownership checks for every new endpoint.
 - Server-side operations for stock-in/out and immutable audit records instead of replacing the entire inventory snapshot.
 - Subscription checkout, verified payment webhooks, invoices, cancellation and access controls tied to billing state.
 - Backups, monitoring, support procedures and a tested export/restore process.
 - Your actual sales/delivery records. Globe regions are demo data; market value is quantity times asking price, not realized sales.
 
-For a first commercial pilot, consider one separately deployed instance per company with authentication. A shared subscription product should have organization-scoped records and typically a hosted PostgreSQL database. Those changes are future work, not features completed in this release.
+For a first commercial pilot, use one separately deployed instance per company with `AUTH_REQUIRED=true`. A shared subscription product should add a full organization provisioning and membership model and typically use hosted PostgreSQL. Those broader account and billing changes are future work.
 
 ## Ways to earn revenue
 

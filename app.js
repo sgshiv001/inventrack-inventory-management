@@ -1,7 +1,7 @@
 const STORE_KEY = 'inventrack_mca_v1';
 const LEGACY_STORE_KEY = 'stockflow_inventory_v1';
 const API_BASE = String(window.INVENTRACK_API_BASE || '').replace(/\/$/,'');
-const api = (path,options) => fetch(`${API_BASE}${path}`,options);
+const api = (path,options={}) => fetch(`${API_BASE}${path}`,{credentials:'include',...options});
 const rupees = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0});
 const shortDate = new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric'});
 
@@ -47,6 +47,7 @@ let db = load();
 let selectedRegionId='';
 let selectedShipmentId='sh1';
 let databaseReady=false, saveQueue=Promise.resolve(), releases=[];
+let authState={required:false,authenticated:false,user:null};
 const VISITOR_ID_KEY='inventrack_visitor_id_v1',VISITOR_FALLBACK_KEY='inventrack_visitor_metrics_v1';
 let visitorMetrics=(()=>{try{const saved=JSON.parse(localStorage.getItem(VISITOR_FALLBACK_KEY)||'{}');return {totalVisitors:Number(saved.totalVisitors)||0,todayVisitors:Number(saved.todayVisitors)||0,weekVisitors:Number(saved.weekVisitors)||0}}catch{return {totalVisitors:0,todayVisitors:0,weekVisitors:0}}})();
 let distributionGlobe=null;
@@ -54,6 +55,44 @@ function connection(message,state){const el=document.getElementById('connectionS
 const $ = id => document.getElementById(id);
 const uid = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+function authCanWrite(){return !authState.required||(authState.authenticated&&['admin','wholesaler'].includes(authState.user?.role));}
+function renderAuthState(){
+  const button=$('authButton');
+  if(button){button.hidden=!authState.required;button.textContent=authState.authenticated?'Sign out':'Sign in';button.title=authState.authenticated?`Sign out ${authState.user.email}`:'Sign in to the organization workspace';}
+  if(authState.authenticated&&authState.user?.role&&typeof roleDetails!=='undefined'){
+    workspace.role=authState.user.role;persistWorkspace();
+    if($('roleChip'))$('roleChip').textContent=`${roleDetails[authState.user.role].label} workspace`;
+  }
+  const writeControls=['importBtn','quickAddBtn','addProductBtn','addMovementBtn','addSupplierBtn','addShipmentBtn','advanceShipmentBtn','resetDataBtn'];
+  for(const id of writeControls){const el=$(id);if(el)el.hidden=authState.required&&!authCanWrite();}
+}
+function openAuthDialog(message=''){
+  $('welcomeDialog')?.open&&$('welcomeDialog').close();
+  const dialog=$('authDialog');if(!dialog)return;
+  $('authError').textContent=message;
+  if(!dialog.open)dialog.showModal();
+  setTimeout(()=>$('authEmail')?.focus(),60);
+}
+async function loadAuthSession(){
+  const response=await api('/api/auth/session',{signal:AbortSignal.timeout(5000)});
+  if(!response.ok)throw new Error('Authentication endpoint unavailable.');
+  authState=await response.json();renderAuthState();return authState;
+}
+async function submitLogin(event){
+  event.preventDefault();
+  const button=$('authSubmit');button.disabled=true;$('authError').textContent='';
+  try{
+    const response=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('authEmail').value.trim(),password:$('authPassword').value}),signal:AbortSignal.timeout(10000)});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||'Sign-in failed.');
+    authState={required:true,authenticated:true,user:result.user};renderAuthState();$('authPassword').value='';$('authDialog').close();await loadFromServer();toast(`Signed in as ${result.user.email}.`);
+  }catch(error){$('authError').textContent=error.message||'Sign-in failed.';}
+  finally{button.disabled=false;}
+}
+async function signOut(){
+  try{await api('/api/auth/logout',{method:'POST',signal:AbortSignal.timeout(5000)});}catch{}
+  authState={required:true,authenticated:false,user:null};databaseReady=false;renderAuthState();connection('Sign in required','error');openAuthDialog('You have been signed out.');
+}
 
 function load(){
   try{
@@ -70,8 +109,11 @@ function save(){
     if(!databaseReady)throw new Error('Database unavailable. Export your changes before reloading.');
     snapshot.revision=db.revision;
     const response=await api('/api/inventory',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(10000)});
-    if(!response.ok)throw new Error((await response.json()).error||'Database update failed.');
-    const saved=await response.json();db.revision=saved.revision;
+    const result=await response.json();
+    if(response.status===401){authState={required:true,authenticated:false,user:null};renderAuthState();openAuthDialog('Your session has expired.');throw new Error('Authentication required.');}
+    if(response.status===403)throw new Error(result.error||'Your account is read-only.');
+    if(!response.ok)throw new Error(result.error||'Database update failed.');
+    const saved=result;db.revision=saved.revision;
     localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');
     logActivity('Database save confirmed','Inventory changes were committed to SQLite.');renderLogbook();
   }).catch(error=>{databaseReady=false;connection('Not saved · export & reload','error');toast(error.message);});
@@ -79,7 +121,10 @@ function save(){
 }
 async function loadFromServer(){
   try{
+    await loadAuthSession();
+    if(authState.required&&!authState.authenticated){databaseReady=false;connection('Sign in required','error');openAuthDialog();return;}
     const response=await api('/api/inventory',{signal:AbortSignal.timeout(10000)});
+    if(response.status===401){authState={required:true,authenticated:false,user:null};renderAuthState();databaseReady=false;connection('Sign in required','error');openAuthDialog('Your session has expired.');return;}
     if(!response.ok)throw new Error('Could not load inventory.');
     db=await response.json();
     databaseReady=true;connection('Database connected','ready');
@@ -87,7 +132,7 @@ async function loadFromServer(){
     renderAll();renderEnhanced();
     const releaseResponse=await api('/api/releases');
     if(releaseResponse.ok){releases=await releaseResponse.json();renderLogbook();}
-  }catch(error){databaseReady=false;const hostedDemo=location.hostname.endsWith('.chatgpt.site')||location.protocol==='file:';connection(hostedDemo?'Demo mode · seeded data':'Offline · cached data',hostedDemo?'demo':'error');}
+  }catch(error){databaseReady=false;const hostedDemo=location.hostname.endsWith('.chatgpt.site')||location.protocol==='file:';if(!authState.required){connection(hostedDemo?'Demo mode · seeded data':'Offline · cached data',hostedDemo?'demo':'error');}else{connection('Sign in required','error');openAuthDialog(error.message);}}
 }
 document.addEventListener('submit',event=>{if(!databaseReady && ['productForm','movementForm','supplierForm','shipmentForm'].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();toast('Connect the database before editing inventory.');}},true);
 document.addEventListener('click',event=>{
@@ -168,8 +213,8 @@ function renderProducts(){
   const search=$('productSearch').value.toLowerCase(),cat=$('categoryFilter').value,stock=$('stockFilter').value;
   const filtered=db.products.filter(p=>{const matches=!search||[p.name,p.sku,p.category].some(x=>x.toLowerCase().includes(search));const state=statusFor(p)[1];return matches&&(!cat||p.category===cat)&&(!stock||state===stock||(stock==='healthy'&&state==='good'))});
   const showcase=$('productShowcase');
-  if(showcase)showcase.innerHTML=filtered.length?filtered.slice(0,6).map(p=>{const status=statusFor(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'Unassigned',inventoryValue=p.quantity*p.cost,marketValue=p.quantity*p.price,margin=marketValue-inventoryValue,marginRate=p.price?Math.round((p.price-p.cost)/p.price*100):0;return `<article class="product-showcase-card"><div class="product-showcase-top"><span class="catalogue-label">${escapeHtml(p.category)}</span><span class="badge ${status[1]}">${status[0]}</span></div><div class="product-showcase-main">${productVisual(p)}<div><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.sku)} · ${escapeHtml(supplier)}</p></div></div><div class="product-business-grid"><div><span>On hand</span><strong>${p.quantity.toLocaleString('en-IN')}</strong></div><div><span>Market value</span><strong>${rupees.format(marketValue)}</strong></div><div><span>Margin</span><strong>${marginRate}%</strong></div></div><button class="showcase-action" data-edit-product="${p.id}">View product details <span aria-hidden="true">→</span></button></article>`}).join(''):'<div class="empty">No product visuals match these filters.</div>';
-  $('productsTable').innerHTML=filtered.length?filtered.map(p=>{const status=statusFor(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'--',margin=(p.price-p.cost)*p.quantity;return `<tr><td><div class="product-cell">${productVisual(p,true)}<div><strong>${escapeHtml(p.name)}</strong><small class="table-subtext">${escapeHtml(p.category)}</small></div></div></td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.category)}</td><td><strong>${p.quantity}</strong> units</td><td>${rupees.format(p.cost)}</td><td>${rupees.format(p.price)}</td><td>${rupees.format(p.cost*p.quantity)}</td><td>${rupees.format(margin)}</td><td>${escapeHtml(supplier)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td><div class="actions"><button class="action-btn" data-edit-product="${p.id}" title="Edit product">Edit</button><button class="action-btn" data-move-product="${p.id}" title="Record stock movement">Stock</button><button class="action-btn" data-delete-product="${p.id}" title="Delete product">Delete</button></div></td></tr>`}).join(''):'<tr><td colspan="11" class="empty">No products match these filters.</td></tr>';
+  if(showcase)showcase.innerHTML=filtered.length?filtered.slice(0,6).map(p=>{const status=statusFor(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'Unassigned',inventoryValue=p.quantity*p.cost,marketValue=p.quantity*p.price,margin=marketValue-inventoryValue,marginRate=p.price?Math.round((p.price-p.cost)/p.price*100):0,details=authCanWrite()?`<button class="showcase-action" data-edit-product="${p.id}">View product details <span aria-hidden="true">→</span></button>`:'<span class="showcase-action readonly">Read-only product details</span>';return `<article class="product-showcase-card"><div class="product-showcase-top"><span class="catalogue-label">${escapeHtml(p.category)}</span><span class="badge ${status[1]}">${status[0]}</span></div><div class="product-showcase-main">${productVisual(p)}<div><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.sku)} · ${escapeHtml(supplier)}</p></div></div><div class="product-business-grid"><div><span>On hand</span><strong>${p.quantity.toLocaleString('en-IN')}</strong></div><div><span>Market value</span><strong>${rupees.format(marketValue)}</strong></div><div><span>Margin</span><strong>${marginRate}%</strong></div></div>${details}</article>`}).join(''):'<div class="empty">No product visuals match these filters.</div>';
+  $('productsTable').innerHTML=filtered.length?filtered.map(p=>{const status=statusFor(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'--',margin=(p.price-p.cost)*p.quantity,actions=authCanWrite()?`<div class="actions"><button class="action-btn" data-edit-product="${p.id}" title="Edit product">Edit</button><button class="action-btn" data-move-product="${p.id}" title="Record stock movement">Stock</button><button class="action-btn" data-delete-product="${p.id}" title="Delete product">Delete</button></div>`:'<span class="readonly">Read only</span>';return `<tr><td><div class="product-cell">${productVisual(p,true)}<div><strong>${escapeHtml(p.name)}</strong><small class="table-subtext">${escapeHtml(p.category)}</small></div></div></td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.category)}</td><td><strong>${p.quantity}</strong> units</td><td>${rupees.format(p.cost)}</td><td>${rupees.format(p.price)}</td><td>${rupees.format(p.cost*p.quantity)}</td><td>${rupees.format(margin)}</td><td>${escapeHtml(supplier)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td>${actions}</td></tr>`}).join(''):'<tr><td colspan="11" class="empty">No products match these filters.</td></tr>';
   $('productCount').textContent=`Showing ${filtered.length} of ${db.products.length} products`;
   const selected=$('categoryFilter').value,categories=[...new Set(db.products.map(p=>p.category))].sort();$('categoryFilter').innerHTML='<option value="">All categories</option>'+categories.map(c=>`<option ${c===selected?'selected':''}>${escapeHtml(c)}</option>`).join('');
 }
@@ -195,7 +240,7 @@ function supplierStats(supplier){
 function renderSuppliers(){
   const stats=db.suppliers.map((supplier,index)=>({...supplier,...supplierStats(supplier),index})),portfolio=stats.reduce((total,supplier)=>total+supplier.market,0),lines=stats.reduce((total,supplier)=>total+supplier.items.length,0),atRisk=stats.reduce((total,supplier)=>total+supplier.low,0);
   if($('supplierSummary'))$('supplierSummary').innerHTML=`<article><span>Partner network</span><strong>${stats.length}</strong><small>Active supplier records</small></article><article><span>Catalogue coverage</span><strong>${lines}</strong><small>Product lines linked to partners</small></article><article><span>Market value supported</span><strong>${rupees.format(portfolio)}</strong><small>Current selling value</small></article><article><span>Lines to watch</span><strong>${atRisk}</strong><small>At or below reorder level</small></article>`;
-  $('supplierGrid').innerHTML=stats.length?stats.map(s=>{const share=portfolio?Math.round(s.market/portfolio*100):0,service=s.related?`${s.related} route${s.related===1?'':'s'} linked`:'Awaiting route activity';return `<article class="supplier-card"><div class="supplier-card-head"><div class="supplier-profile">${supplierVisual(s,s.index)}<div><span class="supplier-tier">PARTNER ${String(s.index+1).padStart(2,'0')}</span><h3>${escapeHtml(s.name)}</h3></div></div><div class="actions"><button class="action-btn" data-edit-supplier="${s.id}" title="Edit supplier">Edit</button><button class="action-btn" data-delete-supplier="${s.id}" title="Delete supplier">Delete</button></div></div><p class="contact">${escapeHtml(s.contact||'No contact person')} · ${escapeHtml(String(s.address||'').split(',')[0]||'Remote partner')}</p><div class="supplier-details"><a href="tel:${escapeHtml(s.phone)}">Phone: ${escapeHtml(s.phone||'No phone')}</a><a href="mailto:${escapeHtml(s.email)}">Email: ${escapeHtml(s.email||'No email')}</a><span>Address: ${escapeHtml(s.address||'No address')}</span></div><div class="supplier-business-grid"><div><span>Product lines</span><strong>${s.items.length}</strong></div><div><span>Market value</span><strong>${rupees.format(s.market)}</strong></div><div><span>Share</span><strong>${share}%</strong></div></div><div class="supplier-share"><span style="width:${share}%"></span></div><div class="supplier-meta"><span>${service}</span><span class="${s.low?'risk-copy':'healthy-copy'}">${s.low?`${s.low} line${s.low===1?'':'s'} at risk`:'Supply health stable'}</span></div></article>`}).join(''):'<div class="panel empty">No suppliers added yet.</div>';
+  $('supplierGrid').innerHTML=stats.length?stats.map(s=>{const share=portfolio?Math.round(s.market/portfolio*100):0,service=s.related?`${s.related} route${s.related===1?'':'s'} linked`:'Awaiting route activity',actions=authCanWrite()?`<div class="actions"><button class="action-btn" data-edit-supplier="${s.id}" title="Edit supplier">Edit</button><button class="action-btn" data-delete-supplier="${s.id}" title="Delete supplier">Delete</button></div>`:'<span class="readonly">Read only</span>';return `<article class="supplier-card"><div class="supplier-card-head"><div class="supplier-profile">${supplierVisual(s,s.index)}<div><span class="supplier-tier">PARTNER ${String(s.index+1).padStart(2,'0')}</span><h3>${escapeHtml(s.name)}</h3></div></div>${actions}</div><p class="contact">${escapeHtml(s.contact||'No contact person')} · ${escapeHtml(String(s.address||'').split(',')[0]||'Remote partner')}</p><div class="supplier-details"><a href="tel:${escapeHtml(s.phone)}">Phone: ${escapeHtml(s.phone||'No phone')}</a><a href="mailto:${escapeHtml(s.email)}">Email: ${escapeHtml(s.email||'No email')}</a><span>Address: ${escapeHtml(s.address||'No address')}</span></div><div class="supplier-business-grid"><div><span>Product lines</span><strong>${s.items.length}</strong></div><div><span>Market value</span><strong>${rupees.format(s.market)}</strong></div><div><span>Share</span><strong>${share}%</strong></div></div><div class="supplier-share"><span style="width:${share}%"></span></div><div class="supplier-meta"><span>${service}</span><span class="${s.low?'risk-copy':'healthy-copy'}">${s.low?`${s.low} line${s.low===1?'':'s'} at risk`:'Supply health stable'}</span></div></article>`}).join(''):'<div class="panel empty">No suppliers added yet.</div>';
 }
 function renderAnalytics(){
   const products=db.products,market=products.reduce((n,p)=>n+p.quantity*p.price,0),cost=products.reduce((n,p)=>n+p.quantity*p.cost,0),margin=market-cost,low=products.filter(p=>p.quantity<=p.reorder).length;
@@ -267,7 +312,7 @@ function renderLogistics(){
   renderShipmentHeatmap(shipments);
   const selected=filtered.find(shipment=>shipment.id===selectedShipmentId)||filtered[0]||shipments[0];if(selected)selectedShipmentId=selected.id;renderShipmentTracking(selected);
   $('shipmentCount').textContent=`Showing ${filtered.length} of ${shipments.length} shipments`;
-  $('shipmentsTable').innerHTML=filtered.length?filtered.map(shipment=>{const status=shipmentStatus(shipment.status),eta=new Date(`${shipment.eta}T00:00:00`);return `<tr class="shipment-row ${shipment.id===selected?.id?'selected':''}" data-select-shipment="${shipment.id}"><td><strong>${escapeHtml(shipment.tracking)}</strong><small class="table-subtext">${shipment.weight.toLocaleString('en-IN')} kg</small></td><td>${escapeHtml(shipment.customer)}</td><td><span class="route-cell">${escapeHtml(shipment.origin.label)} <b>→</b> ${escapeHtml(shipment.destination.label)}</span></td><td>${escapeHtml(shipment.carrier)}</td><td>${shortDate.format(eta)}</td><td>${rupees.format(shipment.value)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td>${shipment.status==='delivered'?'<span class="table-check">✓</span>':`<button class="action-btn" data-advance-shipment="${shipment.id}" title="Advance shipment status">Update</button>`}</td></tr>`}).join(''):'<tr><td colspan="8" class="empty">No shipments match these filters.</td></tr>';
+  $('shipmentsTable').innerHTML=filtered.length?filtered.map(shipment=>{const status=shipmentStatus(shipment.status),eta=new Date(`${shipment.eta}T00:00:00`),advance=shipment.status==='delivered'?'<span class="table-check">✓</span>':authCanWrite()?`<button class="action-btn" data-advance-shipment="${shipment.id}" title="Advance shipment status">Update</button>`:'<span class="readonly">Read only</span>';return `<tr class="shipment-row ${shipment.id===selected?.id?'selected':''}" data-select-shipment="${shipment.id}"><td><strong>${escapeHtml(shipment.tracking)}</strong><small class="table-subtext">${shipment.weight.toLocaleString('en-IN')} kg</small></td><td>${escapeHtml(shipment.customer)}</td><td><span class="route-cell">${escapeHtml(shipment.origin.label)} <b>→</b> ${escapeHtml(shipment.destination.label)}</span></td><td>${escapeHtml(shipment.carrier)}</td><td>${shortDate.format(eta)}</td><td>${rupees.format(shipment.value)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td>${advance}</td></tr>`}).join(''):'<tr><td colspan="8" class="empty">No shipments match these filters.</td></tr>';
 }
 function openShipment(){
   $('shipmentForm').reset();$('shipmentError').textContent='';$('shipmentOrigin').value='Mumbai, India';const eta=new Date();eta.setDate(eta.getDate()+5);$('shipmentEta').value=eta.toISOString().slice(0,10);$('shipmentDialog').showModal();
@@ -350,6 +395,7 @@ function applyTheme(){
   $('themeToggle').title=workspace.theme==='dark'?'Switch to light mode':'Switch to dark mode';
 }
 function setRole(role){
+  if(authState.required&&authState.authenticated&&role!==authState.user.role){toast(`Your account is assigned to the ${roleDetails[authState.user.role].label} role.`);return;}
   workspace.role=roleDetails[role]?role:'admin';persistWorkspace();
   $('roleChip').textContent=`${roleDetails[workspace.role].label} workspace`;
   $('welcomeDialog').close();
@@ -377,6 +423,7 @@ function renderEnhanced(){
   renderLogbook();renderNotifications();
   $('roleChip').textContent=`${roleDetails[workspace.role||'admin'].label} workspace`;
   applyTheme();
+  renderAuthState();
 }
 document.addEventListener('click',event=>{
   const role=event.target.closest('[data-role]');
@@ -389,6 +436,8 @@ document.addEventListener('click',event=>{
   if(event.target.closest('#clearLogBtn')){workspace.activity=[];persistWorkspace();renderLogbook();toast('Activity log cleared.');}
   const nav=event.target.closest('[data-view]');if(nav&&nav.dataset.view==='logbook')renderLogbook();
 });
+$('authForm').addEventListener('submit',submitLogin);
+$('authButton').addEventListener('click',()=>authState.authenticated?signOut():openAuthDialog());
 renderAll();
 ensureNotificationPanel();
 renderEnhanced();

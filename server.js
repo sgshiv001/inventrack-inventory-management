@@ -2,13 +2,18 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const CORS_ORIGIN = String(process.env.CORS_ORIGIN || '').replace(/\/$/,'');
+const AUTH_REQUIRED = /^true$/i.test(String(process.env.AUTH_REQUIRED || 'false'));
+const configuredSessionTtl = Number(process.env.SESSION_TTL_MS || 8 * 60 * 60 * 1000);
+const SESSION_TTL_MS = Number.isFinite(configuredSessionTtl) ? Math.max(15 * 60 * 1000, configuredSessionTtl) : 8 * 60 * 60 * 1000;
 const ROOT = __dirname;
 const DB_PATH = path.resolve(process.env.DB_PATH || path.join(ROOT, 'data', 'inventrack.db'));
+const DEMO_ORG_ID = 'org_demo';
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const seed = {
@@ -71,30 +76,106 @@ db.exec(`PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
   INSERT OR IGNORE INTO metadata VALUES ('revision', 0);
   CREATE TABLE IF NOT EXISTS release_log (id TEXT PRIMARY KEY, action TEXT NOT NULL, detail TEXT NOT NULL, date TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, name TEXT NOT NULL, contact TEXT, phone TEXT, email TEXT, address TEXT);
-  CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT NOT NULL, sku TEXT NOT NULL COLLATE NOCASE UNIQUE, category TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity >= 0), reorder_level INTEGER NOT NULL CHECK(reorder_level >= 0), cost REAL NOT NULL CHECK(cost >= 0), price REAL NOT NULL CHECK(price >= 0), supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL);
-  CREATE TABLE IF NOT EXISTS movements (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('in', 'out', 'adjustment')), quantity INTEGER NOT NULL CHECK(quantity >= 0), balance INTEGER NOT NULL CHECK(balance >= 0), reference TEXT, notes TEXT, date TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS sales_regions (id TEXT PRIMARY KEY, city TEXT NOT NULL, country TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, sales REAL NOT NULL CHECK(sales >= 0), units INTEGER NOT NULL CHECK(units >= 0), status TEXT NOT NULL CHECK(status IN ('healthy', 'watch', 'risk')));
-  CREATE TABLE IF NOT EXISTS shipments (id TEXT PRIMARY KEY, tracking TEXT NOT NULL COLLATE NOCASE UNIQUE, customer TEXT NOT NULL, origin TEXT NOT NULL, origin_lat REAL NOT NULL, origin_lng REAL NOT NULL, destination TEXT NOT NULL, destination_lat REAL NOT NULL, destination_lng REAL NOT NULL, carrier TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending', 'in-transit', 'delivered', 'delayed')), weight REAL NOT NULL CHECK(weight >= 0), value REAL NOT NULL CHECK(value >= 0), eta TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS shipment_events (id TEXT PRIMARY KEY, shipment_id TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE, status TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, location TEXT NOT NULL, date TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, email TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('admin', 'wholesaler', 'retailer')), created_at TEXT NOT NULL, UNIQUE(organization_id, email));
+  CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', name TEXT NOT NULL, contact TEXT, phone TEXT, email TEXT, address TEXT);
+  CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', name TEXT NOT NULL, sku TEXT NOT NULL COLLATE NOCASE UNIQUE, category TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity >= 0), reorder_level INTEGER NOT NULL CHECK(reorder_level >= 0), cost REAL NOT NULL CHECK(cost >= 0), price REAL NOT NULL CHECK(price >= 0), supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL);
+  CREATE TABLE IF NOT EXISTS movements (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', product_id TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('in', 'out', 'adjustment')), quantity INTEGER NOT NULL CHECK(quantity >= 0), balance INTEGER NOT NULL CHECK(balance >= 0), reference TEXT, notes TEXT, date TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS sales_regions (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', city TEXT NOT NULL, country TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, sales REAL NOT NULL CHECK(sales >= 0), units INTEGER NOT NULL CHECK(units >= 0), status TEXT NOT NULL CHECK(status IN ('healthy', 'watch', 'risk')));
+  CREATE TABLE IF NOT EXISTS shipments (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', tracking TEXT NOT NULL COLLATE NOCASE UNIQUE, customer TEXT NOT NULL, origin TEXT NOT NULL, origin_lat REAL NOT NULL, origin_lng REAL NOT NULL, destination TEXT NOT NULL, destination_lat REAL NOT NULL, destination_lng REAL NOT NULL, carrier TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending', 'in-transit', 'delivered', 'delayed')), weight REAL NOT NULL CHECK(weight >= 0), value REAL NOT NULL CHECK(value >= 0), eta TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS shipment_events (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', shipment_id TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE, status TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, location TEXT NOT NULL, date TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS visitor_events (visitor_id TEXT NOT NULL, visit_date TEXT NOT NULL, path TEXT NOT NULL, visited_at TEXT NOT NULL, PRIMARY KEY (visitor_id, visit_date));`);
 
-function rows() {
-  const shipments = db.prepare('SELECT id, tracking, customer, origin, origin_lat AS originLat, origin_lng AS originLng, destination, destination_lat AS destinationLat, destination_lng AS destinationLng, carrier, status, weight, value, eta, created_at AS createdAt, updated_at AS updatedAt FROM shipments ORDER BY updated_at DESC').all();
+const organizationTables = ['suppliers', 'products', 'movements', 'sales_regions', 'shipments', 'shipment_events'];
+for (const table of organizationTables) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some(column => column.name === 'organization_id')) db.exec(`ALTER TABLE ${table} ADD COLUMN organization_id TEXT`);
+  db.prepare(`UPDATE ${table} SET organization_id=? WHERE organization_id IS NULL OR organization_id=''`).run(DEMO_ORG_ID);
+}
+db.exec(`CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
+  CREATE INDEX IF NOT EXISTS idx_products_organization ON products(organization_id);
+  CREATE INDEX IF NOT EXISTS idx_movements_organization ON movements(organization_id);
+  CREATE INDEX IF NOT EXISTS idx_shipments_organization ON shipments(organization_id);
+  CREATE INDEX IF NOT EXISTS idx_events_organization ON shipment_events(organization_id);`);
+db.prepare('INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, ?, ?)').run(DEMO_ORG_ID, 'InvenTrack demo organization', new Date().toISOString());
+
+function normalizeEmail(value) { return String(value || '').trim().toLowerCase(); }
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  const derived = crypto.scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 });
+  return `scrypt$${salt.toString('base64url')}$${derived.toString('base64url')}`;
+}
+function verifyPassword(password, stored) {
+  const [, saltText, hashText] = String(stored || '').split('$');
+  if (!saltText || !hashText) return false;
+  try {
+    const expected = Buffer.from(hashText, 'base64url');
+    const actual = crypto.scryptSync(password, Buffer.from(saltText, 'base64url'), expected.length, { N: 16384, r: 8, p: 1 });
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  } catch { return false; }
+}
+function tokenHash(token) { return crypto.createHash('sha256').update(token).digest('hex'); }
+function parseCookies(header = '') {
+  return Object.fromEntries(header.split(';').map(part => part.trim().split('='))
+    .filter(([key, value]) => key && value).map(([key, ...value]) => [key, decodeURIComponent(value.join('='))]));
+}
+function publicUser(user) {
+  return user ? { id: user.id, email: user.email, role: user.role, organizationId: user.organization_id, organizationName: user.organization_name } : null;
+}
+function currentUser(req) {
+  if (!AUTH_REQUIRED) return { id: 'demo-user', email: 'demo@inventrack.local', role: 'admin', organization_id: DEMO_ORG_ID, organization_name: 'InvenTrack demo organization' };
+  const token = parseCookies(req.headers.cookie).inventrack_session;
+  if (!token) return null;
+  const user = db.prepare(`SELECT users.id, users.email, users.role, users.organization_id, organizations.name AS organization_name
+    FROM sessions JOIN users ON users.id=sessions.user_id JOIN organizations ON organizations.id=users.organization_id
+    WHERE sessions.token_hash=? AND sessions.expires_at>?`).get(tokenHash(token), new Date().toISOString());
+  if (user) db.prepare('UPDATE sessions SET last_seen_at=? WHERE token_hash=?').run(new Date().toISOString(), tokenHash(token));
+  return user || null;
+}
+function cookieHeader(token, req, maxAge) {
+  const secure = req.headers['x-forwarded-proto'] === 'https' || req.socket.encrypted;
+  const sameSite = CORS_ORIGIN && secure ? 'None' : 'Lax';
+  return `inventrack_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=${sameSite}; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+}
+function createSession(userId, req) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  const now = new Date();
+  db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)')
+    .run(tokenHash(token), userId, new Date(now.getTime() + SESSION_TTL_MS).toISOString(), now.toISOString(), now.toISOString());
+  return cookieHeader(token, req, Math.floor(SESSION_TTL_MS / 1000));
+}
+function ensureAdminUser() {
+  if (db.prepare('SELECT 1 FROM users LIMIT 1').get()) return;
+  const email = normalizeEmail(process.env.ADMIN_EMAIL);
+  const password = String(process.env.ADMIN_PASSWORD || '');
+  if (!email && !password) {
+    if (AUTH_REQUIRED) throw new Error('AUTH_REQUIRED=true needs ADMIN_EMAIL and ADMIN_PASSWORD on the first startup.');
+    return;
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email) || password.length < 12) {
+    throw new Error('ADMIN_EMAIL must be valid and ADMIN_PASSWORD must contain at least 12 characters.');
+  }
+  db.prepare('INSERT INTO users (id, organization_id, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run('user_admin', DEMO_ORG_ID, email, hashPassword(password), 'admin', new Date().toISOString());
+}
+
+function rows(organizationId = DEMO_ORG_ID) {
+  const shipments = db.prepare('SELECT id, tracking, customer, origin, origin_lat AS originLat, origin_lng AS originLng, destination, destination_lat AS destinationLat, destination_lng AS destinationLng, carrier, status, weight, value, eta, created_at AS createdAt, updated_at AS updatedAt FROM shipments WHERE organization_id=? ORDER BY updated_at DESC').all(organizationId);
   return {
     revision: db.prepare("SELECT value FROM metadata WHERE key='revision'").get().value,
-    suppliers: db.prepare('SELECT id, name, contact, phone, email, address FROM suppliers ORDER BY name').all(),
-    products: db.prepare('SELECT id, name, sku, category, quantity, reorder_level AS reorder, cost, price, COALESCE(supplier_id, \'\') AS supplierId FROM products ORDER BY rowid DESC').all(),
-    movements: db.prepare('SELECT id, product_id AS productId, type, quantity, balance, reference, notes, date FROM movements ORDER BY date DESC').all(),
-    regions: db.prepare('SELECT id, city, country, latitude, longitude, sales, units, status FROM sales_regions ORDER BY sales DESC').all(),
-    shipments: shipments.map(shipment => ({ ...shipment, origin: { label: shipment.origin, latitude: shipment.originLat, longitude: shipment.originLng }, destination: { label: shipment.destination, latitude: shipment.destinationLat, longitude: shipment.destinationLng }, events: db.prepare('SELECT id, status, title, detail, location, date FROM shipment_events WHERE shipment_id=? ORDER BY date DESC').all(shipment.id) }))
+    suppliers: db.prepare('SELECT id, name, contact, phone, email, address FROM suppliers WHERE organization_id=? ORDER BY name').all(organizationId),
+    products: db.prepare('SELECT id, name, sku, category, quantity, reorder_level AS reorder, cost, price, COALESCE(supplier_id, \'\') AS supplierId FROM products WHERE organization_id=? ORDER BY rowid DESC').all(organizationId),
+    movements: db.prepare('SELECT id, product_id AS productId, type, quantity, balance, reference, notes, date FROM movements WHERE organization_id=? ORDER BY date DESC').all(organizationId),
+    regions: db.prepare('SELECT id, city, country, latitude, longitude, sales, units, status FROM sales_regions WHERE organization_id=? ORDER BY sales DESC').all(organizationId),
+    shipments: shipments.map(shipment => ({ ...shipment, origin: { label: shipment.origin, latitude: shipment.originLat, longitude: shipment.originLng }, destination: { label: shipment.destination, latitude: shipment.destinationLat, longitude: shipment.destinationLng }, events: db.prepare('SELECT id, status, title, detail, location, date FROM shipment_events WHERE organization_id=? AND shipment_id=? ORDER BY date DESC').all(organizationId, shipment.id) }))
   };
 }
 function visitorStats() {
   const stats = db.prepare("SELECT COUNT(DISTINCT visitor_id) AS totalVisitors, COUNT(DISTINCT CASE WHEN visit_date=date('now') THEN visitor_id END) AS todayVisitors, COUNT(DISTINCT CASE WHEN visit_date>=date('now','-6 day') THEN visitor_id END) AS weekVisitors FROM visitor_events").get();
   return { totalVisitors: stats.totalVisitors, todayVisitors: stats.todayVisitors, weekVisitors: stats.weekVisitors };
 }
-function replaceInventory(payload) {
+function replaceInventory(payload, organizationId = DEMO_ORG_ID) {
   if (!payload || !Array.isArray(payload.suppliers) || !Array.isArray(payload.products) || !Array.isArray(payload.movements)) throw new Error('Expected suppliers, products, and movements arrays.');
   for (const collection of [payload.suppliers, payload.products, payload.movements, payload.regions || [], payload.shipments || []]) {
     if (!Array.isArray(collection) || collection.length > 10000) throw new Error('Invalid collection size.');
@@ -112,43 +193,48 @@ function replaceInventory(payload) {
     if (!Array.isArray(s.events) || s.events.length > 100) throw new Error('Invalid shipment event history.');
     for (const event of s.events) if (!event || typeof event.id !== 'string' || !shipmentStatuses.has(event.status) || ![event.title,event.detail,event.location,event.date].every(v=>typeof v==='string' && v.trim() && v.length<=240) || !Number.isFinite(Date.parse(event.date))) throw new Error('Invalid shipment event.');
   }
-  const insertSupplier = db.prepare('INSERT INTO suppliers VALUES (?, ?, ?, ?, ?, ?)');
-  const insertProduct = db.prepare('INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const insertMovement = db.prepare('INSERT INTO movements VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  const insertRegion = db.prepare('INSERT INTO sales_regions VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  const insertShipment = db.prepare('INSERT INTO shipments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const insertShipmentEvent = db.prepare('INSERT INTO shipment_events VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const insertSupplier = db.prepare('INSERT INTO suppliers (id, organization_id, name, contact, phone, email, address) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const insertProduct = db.prepare('INSERT INTO products (id, organization_id, name, sku, category, quantity, reorder_level, cost, price, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertMovement = db.prepare('INSERT INTO movements (id, organization_id, product_id, type, quantity, balance, reference, notes, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertRegion = db.prepare('INSERT INTO sales_regions (id, organization_id, city, country, latitude, longitude, sales, units, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertShipment = db.prepare('INSERT INTO shipments (id, organization_id, tracking, customer, origin, origin_lat, origin_lng, destination, destination_lat, destination_lng, carrier, status, weight, value, eta, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertShipmentEvent = db.prepare('INSERT INTO shipment_events (id, organization_id, shipment_id, status, title, detail, location, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   db.exec('BEGIN');
   try {
-    db.exec('DELETE FROM shipment_events; DELETE FROM shipments; DELETE FROM movements; DELETE FROM products; DELETE FROM suppliers;');
-    if (payload.regions) db.exec('DELETE FROM sales_regions;');
-    for (const s of payload.suppliers) insertSupplier.run(s.id, s.name, s.contact || '', s.phone || '', s.email || '', s.address || '');
-    for (const p of payload.products) insertProduct.run(p.id, p.name, p.sku, p.category, p.quantity, p.reorder, p.cost, p.price, p.supplierId || null);
-    for (const m of payload.movements) insertMovement.run(m.id, m.productId, m.type, m.quantity, m.balance, m.reference || '', m.notes || '', m.date);
-    for (const region of (payload.regions || [])) insertRegion.run(region.id, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
+    db.prepare('DELETE FROM shipment_events WHERE organization_id=?').run(organizationId);
+    db.prepare('DELETE FROM shipments WHERE organization_id=?').run(organizationId);
+    db.prepare('DELETE FROM movements WHERE organization_id=?').run(organizationId);
+    db.prepare('DELETE FROM products WHERE organization_id=?').run(organizationId);
+    db.prepare('DELETE FROM suppliers WHERE organization_id=?').run(organizationId);
+    if (payload.regions) db.prepare('DELETE FROM sales_regions WHERE organization_id=?').run(organizationId);
+    for (const s of payload.suppliers) insertSupplier.run(s.id, organizationId, s.name, s.contact || '', s.phone || '', s.email || '', s.address || '');
+    for (const p of payload.products) insertProduct.run(p.id, organizationId, p.name, p.sku, p.category, p.quantity, p.reorder, p.cost, p.price, p.supplierId || null);
+    for (const m of payload.movements) insertMovement.run(m.id, organizationId, m.productId, m.type, m.quantity, m.balance, m.reference || '', m.notes || '', m.date);
+    for (const region of (payload.regions || [])) insertRegion.run(region.id, organizationId, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
     for (const s of (payload.shipments || [])) {
-      insertShipment.run(s.id, s.tracking, s.customer, s.origin.label, s.origin.latitude, s.origin.longitude, s.destination.label, s.destination.latitude, s.destination.longitude, s.carrier, s.status, s.weight, s.value, s.eta, s.createdAt, s.updatedAt);
-      for (const event of s.events) insertShipmentEvent.run(event.id, s.id, event.status, event.title, event.detail, event.location, event.date);
+      insertShipment.run(s.id, organizationId, s.tracking, s.customer, s.origin.label, s.origin.latitude, s.origin.longitude, s.destination.label, s.destination.latitude, s.destination.longitude, s.carrier, s.status, s.weight, s.value, s.eta, s.createdAt, s.updatedAt);
+      for (const event of s.events) insertShipmentEvent.run(event.id, organizationId, s.id, event.status, event.title, event.detail, event.location, event.date);
     }
     db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
   } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 if (!db.prepare("SELECT 1 FROM metadata WHERE key='initialized'").get()) {
-  if (!db.prepare('SELECT 1 FROM products LIMIT 1').get() && !db.prepare('SELECT 1 FROM suppliers LIMIT 1').get()) replaceInventory(seed);
+  if (!db.prepare('SELECT 1 FROM products WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID) && !db.prepare('SELECT 1 FROM suppliers WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID)) replaceInventory(seed, DEMO_ORG_ID);
   db.prepare("INSERT INTO metadata VALUES ('initialized',1)").run();
 }
-if (!db.prepare('SELECT 1 FROM sales_regions LIMIT 1').get()) {
-  const insertRegion = db.prepare('INSERT INTO sales_regions VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  for (const region of seed.regions) insertRegion.run(region.id, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
+if (!db.prepare('SELECT 1 FROM sales_regions WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID)) {
+  const insertRegion = db.prepare('INSERT INTO sales_regions (id, organization_id, city, country, latitude, longitude, sales, units, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  for (const region of seed.regions) insertRegion.run(region.id, DEMO_ORG_ID, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
 }
-if (!db.prepare('SELECT 1 FROM shipments LIMIT 1').get()) {
-  const insertShipment = db.prepare('INSERT INTO shipments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const insertShipmentEvent = db.prepare('INSERT INTO shipment_events VALUES (?, ?, ?, ?, ?, ?, ?)');
+if (!db.prepare('SELECT 1 FROM shipments WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID)) {
+  const insertShipment = db.prepare('INSERT INTO shipments (id, organization_id, tracking, customer, origin, origin_lat, origin_lng, destination, destination_lat, destination_lng, carrier, status, weight, value, eta, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertShipmentEvent = db.prepare('INSERT INTO shipment_events (id, organization_id, shipment_id, status, title, detail, location, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   for (const shipment of seed.shipments) {
-    insertShipment.run(shipment.id, shipment.tracking, shipment.customer, shipment.origin.label, shipment.origin.latitude, shipment.origin.longitude, shipment.destination.label, shipment.destination.latitude, shipment.destination.longitude, shipment.carrier, shipment.status, shipment.weight, shipment.value, shipment.eta, shipment.createdAt, shipment.updatedAt);
-    for (const event of shipment.events) insertShipmentEvent.run(event.id, shipment.id, event.status, event.title, event.detail, event.location, event.date);
+    insertShipment.run(shipment.id, DEMO_ORG_ID, shipment.tracking, shipment.customer, shipment.origin.label, shipment.origin.latitude, shipment.origin.longitude, shipment.destination.label, shipment.destination.latitude, shipment.destination.longitude, shipment.carrier, shipment.status, shipment.weight, shipment.value, shipment.eta, shipment.createdAt, shipment.updatedAt);
+    for (const event of shipment.events) insertShipmentEvent.run(event.id, DEMO_ORG_ID, shipment.id, event.status, event.title, event.detail, event.location, event.date);
   }
 }
+ensureAdminUser();
 
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('edition-3-20260913', 'Edition 3 — Clear workspace', 'New forest-green dashboard, larger readable text, sharp charts, database status and serialized saves. Added revision conflict protection, SQLite WAL, private-file protection and a domain/commercial launch guide.', '2026-09-13T12:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('globe-refresh-20260913', 'Distribution globe refresh', 'Rebuilt the sales globe with an orthographic spherical projection, geographic land shapes, atmospheric depth, clean route arcs, accessible region markers and a focused location callout.', '2026-09-13T13:00:00Z');
@@ -157,23 +243,59 @@ db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visual-int
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('webgl-earth-20260917', 'Interactive WebGL Earth model', 'Replaced the flat globe renderer with a real textured WebGL sphere mesh. Added drag rotation, tilt, scroll zoom, reset controls, depth-tested lighting, and route overlays that reproject with the view.', '2026-09-17T13:30:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visitor-counter-20260917', 'Visitor pulse counter', 'Added a privacy-friendly unique visitor counter backed by SQLite with daily de-duplication, a seven-day pulse, and a local fallback for the hosted static portfolio demo. No IP addresses or personal data are stored.', '2026-09-17T14:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('production-readiness-20260917', 'Production readiness foundation', 'Added runtime API-origin configuration, controlled CORS support for split hosting, environment templates, and a documented production checklist for authentication, organization isolation, backups, domain setup, and privacy.', '2026-09-17T15:00:00Z');
-function send(res, code, body, type = 'application/json') { const headers={ 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY' }; if(CORS_ORIGIN){headers['Access-Control-Allow-Origin']=CORS_ORIGIN;headers['Access-Control-Allow-Methods']='GET, PUT, POST, OPTIONS';headers['Access-Control-Allow-Headers']='Content-Type';headers.Vary='Origin'} res.writeHead(code, headers); res.end(type === 'application/json' && !Buffer.isBuffer(body) ? JSON.stringify(body) : body); }
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('secure-pilot-foundation-20260920', 'Secure pilot foundation', 'Added optional scrypt-backed authentication, expiring HTTP-only sessions, server-side role enforcement, organization-scoped inventory queries, and automated auth coverage. Demo mode remains available when authentication is disabled.', '2026-09-20T10:00:00Z');
+function send(res, code, body, type = 'application/json', extraHeaders = {}) { const headers={ 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', ...extraHeaders }; if(CORS_ORIGIN){headers['Access-Control-Allow-Origin']=CORS_ORIGIN;headers['Access-Control-Allow-Methods']='GET, PUT, POST, OPTIONS';headers['Access-Control-Allow-Headers']='Content-Type';headers['Access-Control-Allow-Credentials']='true';headers.Vary='Origin'} res.writeHead(code, headers); res.end(type === 'application/json' && !Buffer.isBuffer(body) ? JSON.stringify(body) : body); }
 function originAllowed(req) { const origin=req.headers.origin; if(!origin)return true; try { const requestOrigin=new URL(origin),hostOrigin=`${requestOrigin.protocol}//${req.headers.host}`; return origin===hostOrigin || (CORS_ORIGIN && origin===CORS_ORIGIN); } catch { return false; } }
 function body(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) reject(new Error('Request body is too large.')); }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { reject(new Error('Invalid JSON.')); } }); }); }
+function requireUser(req, res, roles = []) {
+  const user = currentUser(req);
+  if (!user) { send(res, 401, { error: 'Authentication required.' }); return null; }
+  if (roles.length && !roles.includes(user.role)) { send(res, 403, { error: 'Your role cannot perform this action.' }); return null; }
+  return user;
+}
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg' };
 
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    if(req.method==='OPTIONS'){if(!originAllowed(req))return send(res,403,{error:'Origin is not allowed.'});res.writeHead(204,CORS_ORIGIN?{'Access-Control-Allow-Origin':CORS_ORIGIN,'Access-Control-Allow-Methods':'GET, PUT, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Vary':'Origin'}:{});return res.end();}
-    if (url.pathname === '/api/inventory' && req.method === 'GET') return send(res, 200, rows());
+    if(req.method==='OPTIONS'){if(!originAllowed(req))return send(res,403,{error:'Origin is not allowed.'});res.writeHead(204,CORS_ORIGIN?{'Access-Control-Allow-Origin':CORS_ORIGIN,'Access-Control-Allow-Methods':'GET, PUT, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Credentials':'true','Vary':'Origin'}:{});return res.end();}
+    if (url.pathname === '/api/auth/session' && req.method === 'GET') {
+      const user = currentUser(req);
+      return send(res, 200, { required: AUTH_REQUIRED, authenticated: Boolean(user), user: publicUser(user) });
+    }
+    if (url.pathname === '/api/auth/login' && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const payload = await body(req), email = normalizeEmail(payload.email), password = String(payload.password || '');
+      if (!/^\S+@\S+\.\S+$/.test(email) || !password) return send(res, 400, { error: 'Enter a valid email and password.' });
+      const user = db.prepare(`SELECT users.id, users.email, users.password_hash, users.role, users.organization_id, organizations.name AS organization_name
+        FROM users JOIN organizations ON organizations.id=users.organization_id WHERE lower(users.email)=?`).get(email);
+      if (!user || !verifyPassword(password, user.password_hash)) return send(res, 401, { error: 'Email or password is incorrect.' });
+      db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(new Date().toISOString());
+      const setCookie = createSession(user.id, req);
+      return send(res, 200, { authenticated: true, user: publicUser(user) }, 'application/json', { 'Set-Cookie': setCookie });
+    }
+    if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const token = parseCookies(req.headers.cookie).inventrack_session;
+      if (token) db.prepare('DELETE FROM sessions WHERE token_hash=?').run(tokenHash(token));
+      return send(res, 200, { authenticated: false }, 'application/json', { 'Set-Cookie': cookieHeader('', req, 0) });
+    }
+    if (url.pathname === '/api/inventory' && req.method === 'GET') {
+      const user = requireUser(req, res);
+      return user ? send(res, 200, rows(user.organization_id)) : undefined;
+    }
     if (url.pathname === '/api/inventory' && req.method === 'PUT') {
       if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const user = requireUser(req, res, ['admin', 'wholesaler']);
+      if (!user) return;
       const payload=await body(req);
-      if (payload.revision !== rows().revision) return send(res,409,{error:'Inventory changed in another session. Reload before editing.'});
-      replaceInventory(payload); return send(res, 200, rows());
+      if (payload.revision !== rows(user.organization_id).revision) return send(res,409,{error:'Inventory changed in another session. Reload before editing.'});
+      replaceInventory(payload, user.organization_id); return send(res, 200, rows(user.organization_id));
     }
-    if (url.pathname === '/api/releases' && req.method === 'GET') return send(res,200,db.prepare('SELECT * FROM release_log ORDER BY date DESC').all());
+    if (url.pathname === '/api/releases' && req.method === 'GET') {
+      if (!requireUser(req, res)) return;
+      return send(res,200,db.prepare('SELECT * FROM release_log ORDER BY date DESC').all());
+    }
     if (url.pathname === '/api/visits' && req.method === 'GET') return send(res,200,visitorStats());
     if (url.pathname === '/api/visits' && req.method === 'POST') {
       if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
