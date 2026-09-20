@@ -12,14 +12,14 @@
 .distribution-stats .data-note{display:none}
 .distribution-command .globe-stage{display:block;height:auto;min-height:0;background:#0b1422;position:relative;isolation:isolate;overflow:hidden}
 .globe-stage:before{display:none}
-.earth-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 0;position:relative;z-index:3}
+.earth-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 0;position:relative;z-index:3;width:100%}
 .earth-heading{font-size:14px;color:#c2cede;font-weight:600}
 .earth-layers,.earth-navigation{display:flex;align-items:center;gap:6px}
 .earth-layers button,.earth-navigation button{border:1px solid #39445b;background:#152237;color:#cbd5e5;border-radius:7px;min-height:36px;padding:7px 11px;font:600 13px/1.2 inherit;cursor:pointer}
 .earth-layers button[aria-pressed=true]{color:#f0edff;background:#363255;border-color:#696097}
 .earth-layers button:hover,.earth-navigation button:hover{border-color:#aeb2ff;color:#fff}
 .earth-navigation button:disabled,.earth-layers button:disabled{opacity:.4;cursor:default}
-.earth-viewport{height:460px;position:relative;overflow:hidden;margin:0;background:radial-gradient(ellipse at center,#16273c 0%,#0b1422 68%)}
+.earth-viewport{height:460px;position:relative;overflow:hidden;margin:0;width:100%;min-width:0;background:radial-gradient(ellipse at center,#16273c 0%,#0b1422 68%)}
 .earth-model{display:block;width:100%;height:100%;touch-action:none;cursor:grab;position:absolute;inset:0}
 .earth-model.dragging{cursor:grabbing}
 .globe-stage .earth-labels{position:absolute;inset:0;width:100%;height:100%;min-height:0;overflow:hidden;pointer-events:none;z-index:2}
@@ -37,15 +37,15 @@
 .earth-node.selected .earth-pin,.earth-node:hover .earth-pin{fill:#fff}
 .earth-message{position:absolute;inset:40% 10% auto;text-align:center;background:#152237;padding:16px;border-radius:8px;font-size:14px;color:#dae3ef;z-index:3}
 .earth-message[hidden]{display:none}
-.earth-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 20px 15px}
+.earth-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 20px 15px;width:100%}
 .earth-selection strong{font-size:15px;display:block;color:#fff}
 .earth-selection strong span{font-weight:400;color:#b5c2d3}
 .earth-selection small{display:block;font-size:13px;color:#aebccd;margin-top:5px}
-.earth-caption{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid #263348;color:#aebccd;font-size:12px}
-.earth-legend{display:flex;flex-wrap:wrap;gap:14px;padding:0 20px 12px;color:#c1cada;font-size:12px}
+.earth-caption{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid #263348;color:#aebccd;font-size:12px;width:100%}
+.earth-legend{display:flex;flex-wrap:wrap;gap:14px;padding:0 20px 12px;color:#c1cada;font-size:12px;width:100%}
 .earth-legend span:before{content:'';display:inline-block;width:15px;border-top:2px solid #9eb9ff;margin-right:6px;vertical-align:middle}
 .earth-legend .pending:before{border-color:#edc982;border-top-style:dashed}.earth-legend .delivered:before{border-color:#a3adbd}.earth-legend .delayed:before{border-color:#ff9484}
-.earth-credit{font-size:12px;color:#8e9db4;padding:0 20px 16px}
+.earth-credit{font-size:12px;color:#8e9db4;padding:0 20px 16px;width:100%}
 .earth-credit a{color:#aebed4;text-underline-offset:3px}
 .distribution-command .region-feed{display:block;grid-column:auto;background:#101a2b;border:0;border-left:1px solid #283548}
 .region-feed .panel-head{padding:22px 18px;border:0}
