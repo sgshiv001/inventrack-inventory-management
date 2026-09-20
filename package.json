@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test tests/globe.cjs && node tests/backend.cjs && node tests/auth.cjs"
+    "test": "node --test tests/globe.cjs tests/static.cjs && node tests/backend.cjs && node tests/auth.cjs"
   },
   "engines": {
     "node": ">=22.5.0"
