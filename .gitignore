@@ -1,9 +1,0 @@
-node_modules/
-.sites-runtime/
-.env
-.env.*
-!.env.example
-*.db-wal
-*.db-shm
-*.log
-*.tar.gz
