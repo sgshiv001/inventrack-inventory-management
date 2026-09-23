@@ -117,3 +117,12 @@ body{background:var(--bg);color:var(--ink)}
 .globe-stage:before{inset:6% 8%;background-size:26px 26px;opacity:.16}
 @media(max-width:1180px){.distribution-command{grid-template-columns:190px minmax(0,1fr);min-height:520px}.globe-stage{min-height:520px}.distribution-stats>div{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.distribution-stats article{padding:8px 0}.region-feed{grid-column:1/-1;border-left:0;border-top:1px solid rgba(126,222,255,.18);display:grid;grid-template-columns:190px 1fr}.region-feed .panel-head{border-right:1px solid rgba(126,222,255,.18)}#regionFeed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.distribution-command{display:block;min-height:0}.distribution-stats{border-right:0;border-bottom:1px solid rgba(126,222,255,.18)}.distribution-stats>div{grid-template-columns:repeat(2,minmax(0,1fr))}.globe-stage{height:460px;min-height:460px}.region-feed{display:block}.region-feed .panel-head{border-right:0}#regionFeed{grid-template-columns:repeat(2,minmax(0,1fr))}.globe-controls{right:10px;bottom:10px;max-width:calc(100% - 20px);flex-wrap:wrap;justify-content:flex-end}.globe-controls span{width:100%;text-align:right}}
+
+/* Stock scanning and purchase order details */
+.barcode-dialog{width:min(650px,calc(100% - 28px))}
+.barcode-shell{padding:24px}
+.barcode-dialog video{display:block;width:100%;min-height:240px;max-height:420px;object-fit:cover;background:#0b152b;border-radius:10px}
+.purchase-order-details summary{cursor:pointer;font-weight:700;color:var(--blue)}
+.purchase-order-details ul{margin:10px 0 0;padding-left:18px;white-space:normal;min-width:190px;line-height:1.5}
+.purchase-order-details li{margin-bottom:4px}
+.reorder-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

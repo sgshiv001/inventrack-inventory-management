@@ -38,7 +38,7 @@ Implement and test these before a broader launch:
 
 - User registration, password recovery, account lockout/rate limiting, and a managed identity provider.
 - A tested organization provisioning flow and ownership checks for every new endpoint.
-- Server-side operations for stock-in/out and immutable audit records instead of replacing the entire inventory snapshot.
+- Expand the dedicated stock and purchase-order operations to partial receipts, returns, and shipment-linked fulfilment; move remaining catalogue and logistics writes away from whole-snapshot saves.
 - Subscription checkout, verified payment webhooks, invoices, cancellation and access controls tied to billing state.
 - Backups, monitoring, support procedures and a tested export/restore process.
 - Your actual sales/delivery records. Globe regions are demo data; market value is quantity times asking price, not realized sales.

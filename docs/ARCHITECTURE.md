@@ -13,6 +13,7 @@ flowchart LR
 
   Browser -->|GET /api/inventory| API
   Browser -->|PUT /api/inventory\nrevision checked| API
+  Browser -->|POST /api/stock-movements\nPOST /api/purchase-orders| API
   Browser -->|POST /api/auth/login\nHTTP-only session| API
   API -->|transactional reads/writes| DB
   API -->|release notes| Log
@@ -24,12 +25,12 @@ The browser owns the interactive workspace and renders the dashboard, inventory 
 ## Request and save flow
 
 1. The browser requests `GET /api/inventory` when the page opens.
-2. The server returns a revision number and the related collections: suppliers, products, movements, sales regions, shipments, and shipment events.
+2. The server returns a revision number and the related collections: suppliers, products, movements, sales regions, shipments, shipment events, and purchase orders.
 3. When `AUTH_REQUIRED=true`, the browser signs in through `/api/auth/login` and sends the resulting HTTP-only session cookie with API requests.
-4. A user action updates the in-memory workspace immediately so the interface stays responsive.
-5. The browser sends the complete snapshot with the revision it last loaded.
-6. The server authenticates the session, checks the organization and role, rejects stale revisions with `409 Conflict`, validates IDs and business values, then replaces the snapshot inside one SQLite transaction.
-7. The server returns the new revision; the browser marks the database as synced and records the confirmation in the local activity log.
+4. Catalogue and logistics edits update the in-memory workspace and send a revision-checked snapshot. The server rejects direct quantity edits in this path and retains existing movement records.
+5. Stock-in, stock-out, and exact-quantity adjustments use `POST /api/stock-movements`. The server checks the organization and role, validates the quantity, updates stock, and appends one movement in a SQLite transaction.
+6. The reorder plan creates supplier-grouped orders through `POST /api/purchase-orders`. Receiving an order through its `/receive` endpoint adds all ordered units and their audit movements atomically; an order cannot be received twice.
+7. The server returns the new inventory snapshot and revision so the browser can refresh its workspace.
 
 ## Data relationships
 
@@ -37,6 +38,8 @@ The browser owns the interactive workspace and renders the dashboard, inventory 
 erDiagram
   SUPPLIERS ||--o{ PRODUCTS : supplies
   PRODUCTS ||--o{ MOVEMENTS : records
+  SUPPLIERS ||--o{ PURCHASE_ORDERS : receives
+  PURCHASE_ORDERS ||--o{ PURCHASE_ORDER_ITEMS : contains
   SHIPMENTS ||--o{ SHIPMENT_EVENTS : contains
   ORGANIZATIONS ||--o{ USERS : contains
   ORGANIZATIONS ||--o{ PRODUCTS : owns
@@ -52,6 +55,7 @@ erDiagram
     string id PK
     string organization_id FK
     string sku UK
+    string barcode UK
     string category
     int quantity
     int reorder_level
@@ -92,6 +96,21 @@ erDiagram
     string path
     datetime visited_at
   }
+  PURCHASE_ORDERS {
+    string id PK
+    string organization_id
+    string supplier_id
+    string status
+    datetime created_at
+    datetime received_at
+  }
+  PURCHASE_ORDER_ITEMS {
+    string id PK
+    string order_id FK
+    string product_id
+    int quantity
+    float unit_cost
+  }
   ORGANIZATIONS {
     string id PK
     string name
@@ -108,11 +127,12 @@ erDiagram
 
 ## Backend safeguards
 
-- SQLite foreign keys, `CHECK` constraints, unique SKUs, and unique tracking IDs.
+- SQLite foreign keys, `CHECK` constraints, unique SKUs, organization-scoped unique barcodes, and unique tracking IDs.
 - WAL mode and a busy timeout for safer local concurrent reads and writes.
 - Revision-based conflict protection for two browser sessions editing the same workspace.
 - Optional scrypt password hashing, expiring HTTP-only sessions, server-side role checks, and organization-scoped business records when authentication is enabled.
 - Full validation before a transaction is committed; invalid payloads roll back completely.
+- Dedicated stock and purchase-order transactions keep quantities, receipts, and audit movements consistent. Regular snapshot saves retain existing movement records.
 - Same-origin protection for writes and a static-file allowlist that never exposes the database or server source.
 - HTML escaping at the rendering boundary for user-entered names, notes, suppliers, routes, and shipment events.
 - Visitor analytics stores a random browser visitor ID with a daily uniqueness key; IP addresses, cookies beyond the local ID, and personal data are not collected.
@@ -123,8 +143,8 @@ erDiagram
 | --- | --- |
 | Dashboard | Stock health, value, margin, categories, and urgent alerts |
 | Products | Searchable catalogue, SKU validation, pricing, and supplier links |
-| Reorder plan | Suggested quantities and procurement budget |
-| Stock movements | Auditable stock-in, stock-out, and adjustment ledger |
+| Reorder plan | Suggested quantities, procurement budget, supplier purchase orders, and receiving |
+| Stock movements | Server-validated stock-in, stock-out, and adjustment ledger with barcode lookup |
 | Suppliers | Partner records and contact links |
 | Shipping & tracking | Shipment KPIs, route view, event timeline, ETA, and status progression |
 | Admin insights | Sales-region globe, market value, supplier contribution, risk, and visitor pulse |

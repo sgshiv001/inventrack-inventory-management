@@ -72,6 +72,9 @@ const post = (path, data, headers = {}) => fetch(`${base}${path}`, { method: 'PO
     assert.equal((await otherInventory.json()).products.length, 0);
     const forbiddenWrite = await fetch(`${base}/api/inventory`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Cookie: retailerCookie }, body: JSON.stringify(inventory) });
     assert.equal(forbiddenWrite.status, 403);
+    assert.equal((await post('/api/stock-movements', { productId: 'p2', type: 'in', quantity: 1 }, { Cookie: retailerCookie })).status, 403);
+    assert.equal((await post('/api/purchase-orders', { supplierId: 's1', items: [{ productId: 'p2', quantity: 1 }] }, { Cookie: retailerCookie })).status, 403);
+    assert.equal((await post('/api/demo-reset', {}, cookieHeader)).status, 403);
 
     const logout = await post('/api/auth/logout', {}, cookieHeader);
     assert.equal(logout.status, 200);

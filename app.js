@@ -64,8 +64,8 @@ function renderAuthState(){
     workspace.role=authState.user.role;persistWorkspace();
     if($('roleChip'))$('roleChip').textContent=`${roleDetails[authState.user.role].label} workspace`;
   }
-  const writeControls=['importBtn','quickAddBtn','addProductBtn','addMovementBtn','addSupplierBtn','addShipmentBtn','advanceShipmentBtn','resetDataBtn'];
-  for(const id of writeControls){const el=$(id);if(el)el.hidden=authState.required&&!authCanWrite();}
+  const writeControls=['importBtn','quickAddBtn','addProductBtn','addMovementBtn','addSupplierBtn','addShipmentBtn','advanceShipmentBtn','resetDataBtn','createPurchaseOrdersBtn'];
+  for(const id of writeControls){const el=$(id);if(el)el.hidden=authState.required&&(id==='resetDataBtn'||!authCanWrite());}
 }
 function openAuthDialog(message=''){
   $('welcomeDialog')?.open&&$('welcomeDialog').close();
@@ -114,10 +114,21 @@ function save(){
     if(response.status===403)throw new Error(result.error||'Your account is read-only.');
     if(!response.ok)throw new Error(result.error||'Database update failed.');
     const saved=result;db.revision=saved.revision;
-    localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');
+    db.movements=[...new Map([...db.movements,...saved.movements].map(movement=>[movement.id,movement])).values()];
+    db.purchaseOrders=saved.purchaseOrders;
+    localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');renderAll();
     logActivity('Database save confirmed','Inventory changes were committed to SQLite.');renderLogbook();
   }).catch(error=>{databaseReady=false;connection('Not saved · export & reload','error');toast(error.message);});
   return saveQueue;
+}
+function applyServerSnapshot(snapshot){db=snapshot;databaseReady=true;localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');renderAll();renderEnhanced()}
+async function postServerOperation(path,payload){
+  await saveQueue;
+  if(!databaseReady)throw new Error('Connect to the database before recording this operation.');
+  const response=await api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)}),result=await response.json();
+  if(response.status===401){authState={required:true,authenticated:false,user:null};renderAuthState();openAuthDialog('Your session has expired.');throw new Error('Authentication required.');}
+  if(!response.ok)throw new Error(result.error||'Operation could not be saved.');
+  applyServerSnapshot(result);return result;
 }
 async function loadFromServer(){
   try{
@@ -162,8 +173,8 @@ function importProductsFromCsv(text){
   const rows=parseCsv(text),headers=rows.shift()?.map(h=>h.trim().toLowerCase())||[],required=['name','sku','category','quantity','reorder level','cost price','selling price'];
   const missing=required.filter(name=>!headers.includes(name));
   if(missing.length)throw new Error(`Missing columns: ${missing.join(', ')}`);
-  const index=name=>headers.indexOf(name),seen=new Set();
-  const products=rows.map((row,line)=>{const number=(name)=>Number(row[index(name)]||0),sku=(row[index('sku')]||'').trim(),name=(row[index('name')]||'').trim(),category=(row[index('category')]||'').trim();if(!name||!sku||!category)throw new Error(`Row ${line+2} needs name, SKU, and category.`);if(seen.has(sku.toLowerCase()))throw new Error(`Duplicate SKU in CSV: ${sku}`);seen.add(sku.toLowerCase());const quantity=number('quantity'),reorder=number('reorder level'),cost=number('cost price'),price=number('selling price');if([quantity,reorder,cost,price].some(n=>Number.isNaN(n)||n<0))throw new Error(`Row ${line+2} has invalid numeric values.`);return {id:uid('p'),name,sku,category,quantity,reorder,cost,price,supplierId:''}});
+  const index=name=>headers.indexOf(name),seen=new Set(),seenBarcodes=new Set();
+  const products=rows.map((row,line)=>{const number=(name)=>Number(row[index(name)]||0),sku=(row[index('sku')]||'').trim(),barcode=headers.includes('barcode')?(row[index('barcode')]||'').trim():'',name=(row[index('name')]||'').trim(),category=(row[index('category')]||'').trim();if(!name||!sku||!category)throw new Error(`Row ${line+2} needs name, SKU, and category.`);if(seen.has(sku.toLowerCase()))throw new Error(`Duplicate SKU in CSV: ${sku}`);seen.add(sku.toLowerCase());if(barcode){if(seenBarcodes.has(barcode.toLowerCase()))throw new Error(`Duplicate barcode in CSV: ${barcode}`);seenBarcodes.add(barcode.toLowerCase());}const quantity=number('quantity'),reorder=number('reorder level'),cost=number('cost price'),price=number('selling price');if(!Number.isSafeInteger(quantity)||quantity<0||!Number.isSafeInteger(reorder)||reorder<0||![cost,price].every(n=>Number.isFinite(n)&&n>=0))throw new Error(`Row ${line+2} has invalid numeric values.`);return {id:uid('p'),name,sku,barcode,category,quantity,reorder,cost,price,supplierId:''}});
   if(!products.length)throw new Error('No product rows found.');
   db.products=products;
   db.movements=products.filter(p=>p.quantity>0).map(p=>({id:uid('m'),productId:p.id,type:'in',quantity:p.quantity,balance:p.quantity,reference:'CSV IMPORT',notes:'Imported opening stock',date:new Date().toISOString()}));
@@ -211,7 +222,7 @@ function productVisual(product,compact=false){
 }
 function renderProducts(){
   const search=$('productSearch').value.toLowerCase(),cat=$('categoryFilter').value,stock=$('stockFilter').value;
-  const filtered=db.products.filter(p=>{const matches=!search||[p.name,p.sku,p.category].some(x=>x.toLowerCase().includes(search));const state=statusFor(p)[1];return matches&&(!cat||p.category===cat)&&(!stock||state===stock||(stock==='healthy'&&state==='good'))});
+  const filtered=db.products.filter(p=>{const matches=!search||[p.name,p.sku,p.barcode||'',p.category].some(x=>x.toLowerCase().includes(search));const state=statusFor(p)[1];return matches&&(!cat||p.category===cat)&&(!stock||state===stock||(stock==='healthy'&&state==='good'))});
   const showcase=$('productShowcase');
   if(showcase)showcase.innerHTML=filtered.length?filtered.slice(0,6).map(p=>{const status=statusFor(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'Unassigned',inventoryValue=p.quantity*p.cost,marketValue=p.quantity*p.price,margin=marketValue-inventoryValue,marginRate=p.price?Math.round((p.price-p.cost)/p.price*100):0,details=authCanWrite()?`<button class="showcase-action" data-edit-product="${p.id}">View product details <span aria-hidden="true">→</span></button>`:'<span class="showcase-action readonly">Read-only product details</span>';return `<article class="product-showcase-card"><div class="product-showcase-top"><span class="catalogue-label">${escapeHtml(p.category)}</span><span class="badge ${status[1]}">${status[0]}</span></div><div class="product-showcase-main">${productVisual(p)}<div><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.sku)} · ${escapeHtml(supplier)}</p></div></div><div class="product-business-grid"><div><span>On hand</span><strong>${p.quantity.toLocaleString('en-IN')}</strong></div><div><span>Market value</span><strong>${rupees.format(marketValue)}</strong></div><div><span>Margin</span><strong>${marginRate}%</strong></div></div>${details}</article>`}).join(''):'<div class="empty">No product visuals match these filters.</div>';
   $('productsTable').innerHTML=filtered.length?filtered.map(p=>{const status=statusFor(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'--',margin=(p.price-p.cost)*p.quantity,actions=authCanWrite()?`<div class="actions"><button class="action-btn" data-edit-product="${p.id}" title="Edit product">Edit</button><button class="action-btn" data-move-product="${p.id}" title="Record stock movement">Stock</button><button class="action-btn" data-delete-product="${p.id}" title="Delete product">Delete</button></div>`:'<span class="readonly">Read only</span>';return `<tr><td><div class="product-cell">${productVisual(p,true)}<div><strong>${escapeHtml(p.name)}</strong><small class="table-subtext">${escapeHtml(p.category)}</small></div></div></td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.category)}</td><td><strong>${p.quantity}</strong> units</td><td>${rupees.format(p.cost)}</td><td>${rupees.format(p.price)}</td><td>${rupees.format(p.cost*p.quantity)}</td><td>${rupees.format(margin)}</td><td>${escapeHtml(supplier)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td>${actions}</td></tr>`}).join(''):'<tr><td colspan="11" class="empty">No products match these filters.</td></tr>';
@@ -220,11 +231,40 @@ function renderProducts(){
 }
 
 function suggestedReorderQty(p){return p.quantity<=p.reorder?Math.max(p.reorder*2-p.quantity,p.reorder-p.quantity):0}
+function remainingReorderQty(p){
+  const ordered=(db.purchaseOrders||[]).filter(order=>order.status==='ordered').flatMap(order=>order.items).filter(item=>item.productId===p.id).reduce((total,item)=>total+item.quantity,0);
+  return Math.max(0,suggestedReorderQty(p)-ordered);
+}
 function renderReorderPlan(){
-  const items=db.products.filter(p=>p.quantity<=p.reorder).sort((a,b)=>a.quantity-b.quantity);
-  const units=items.reduce((n,p)=>n+suggestedReorderQty(p),0),cost=items.reduce((n,p)=>n+suggestedReorderQty(p)*p.cost,0);
+  const items=db.products.filter(p=>remainingReorderQty(p)>0).sort((a,b)=>a.quantity-b.quantity);
+  const units=items.reduce((n,p)=>n+remainingReorderQty(p),0),cost=items.reduce((n,p)=>n+remainingReorderQty(p)*p.cost,0);
   $('reorderItems').textContent=items.length;$('reorderUnits').textContent=units.toLocaleString('en-IN');$('reorderCost').textContent=rupees.format(cost);
-  $('reorderTable').innerHTML=items.length?items.map(p=>{const qty=suggestedReorderQty(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'--',status=statusFor(p);return `<tr><td><div class="product-cell"><span class="product-avatar">${initials(p.name)}</span><strong>${escapeHtml(p.name)}</strong></div></td><td>${p.quantity}</td><td>${p.reorder}</td><td><strong>${qty}</strong> units</td><td>${rupees.format(qty*p.cost)}</td><td>${escapeHtml(supplier)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td></tr>`}).join(''):'<tr><td colspan="7" class="empty">No reorder action is needed right now.</td></tr>';
+  $('reorderTable').innerHTML=items.length?items.map(p=>{const qty=remainingReorderQty(p),supplier=db.suppliers.find(s=>s.id===p.supplierId)?.name||'Assign supplier',status=statusFor(p);return `<tr><td><div class="product-cell"><span class="product-avatar">${initials(p.name)}</span><strong>${escapeHtml(p.name)}</strong></div></td><td>${p.quantity}</td><td>${p.reorder}</td><td><strong>${qty}</strong> units</td><td>${rupees.format(qty*p.cost)}</td><td>${escapeHtml(supplier)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td></tr>`}).join(''):'<tr><td colspan="7" class="empty">No reorder action is needed right now.</td></tr>';
+  renderPurchaseOrders();
+}
+function renderPurchaseOrders(){
+  const orders=db.purchaseOrders||[];
+  $('purchaseOrdersTable').innerHTML=orders.length?orders.map(order=>`<tr><td><details class="purchase-order-details"><summary title="${escapeHtml(order.id)}">PO-${escapeHtml(order.id.slice(-8).toUpperCase())}</summary><ul>${order.items.map(item=>`<li>${escapeHtml(item.name)} · ${item.quantity} × ${rupees.format(item.unitCost)}</li>`).join('')}</ul></details></td><td>${escapeHtml(order.supplierName)}</td><td>${shortDate.format(new Date(order.createdAt))}</td><td>${order.items.reduce((n,item)=>n+item.quantity,0)} units · ${order.items.length} lines</td><td>${rupees.format(order.total||0)}</td><td><span class="badge ${order.status==='received'?'good':'low'}">${order.status==='received'?'Received':'Ordered'}</span></td><td>${order.status==='received'?'--':authCanWrite()?`<button class="action-btn" data-receive-order="${escapeHtml(order.id)}">Receive</button>`:'Read only'}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No purchase orders yet. Create supplier orders from the suggested purchase list.</td></tr>';
+}
+async function createPurchaseOrders(){
+  const grouped=new Map();
+  for(const p of db.products.filter(product=>product.quantity<=product.reorder&&product.supplierId)){
+    const quantity=remainingReorderQty(p);if(!quantity)continue;
+    if(!grouped.has(p.supplierId))grouped.set(p.supplierId,[]);
+    grouped.get(p.supplierId).push({productId:p.id,quantity});
+  }
+  if(!grouped.size){toast('No reorder items with an assigned supplier.');return;}
+  const button=$('createPurchaseOrdersBtn');button.disabled=true;
+  try{
+    for(const [supplierId,items] of grouped)await postServerOperation('/api/purchase-orders',{supplierId,items});
+    toast(`${grouped.size} purchase order${grouped.size===1?'':'s'} created.`);
+  }catch(error){toast(error.message||'Could not create purchase orders.');}
+  finally{button.disabled=false;}
+}
+async function receivePurchaseOrder(orderId){
+  if(!confirm(`Receive all items on ${orderId}? Stock quantities and the movement ledger will be updated.`))return;
+  try{await postServerOperation(`/api/purchase-orders/${encodeURIComponent(orderId)}/receive`,{});toast(`${orderId} received and stock updated.`);}
+  catch(error){toast(error.message||'Purchase order could not be received.');}
 }
 
 function movementRow(m,full=true){const p=productFor(m.productId),sign=m.type==='out'?'-':m.type==='in'?'+':'=';return `<tr>${full?`<td>${shortDate.format(new Date(m.date))}</td>`:''}<td><strong>${escapeHtml(p?.name||'Deleted product')}</strong></td><td><span class="badge ${m.type}">${m.type==='in'?'Stock in':m.type==='out'?'Stock out':'Adjustment'}</span></td><td class="${m.type==='out'?'qty-negative':'qty-positive'}">${sign}${m.quantity}</td>${full?`<td>${m.balance}</td>`:`<td>${shortDate.format(new Date(m.date))}</td>`}<td>${escapeHtml(m.reference||'--')}</td>${full?`<td>${escapeHtml(m.notes||'--')}</td>`:''}</tr>`}
@@ -328,19 +368,51 @@ function fillSelects(){
 
 function openProduct(id=''){
   const p=productFor(id);$('productForm').reset();$('productId').value=id;$('productDialogTitle').textContent=p?'Edit product':'Add product';
-  if(p){$('productName').value=p.name;$('productSku').value=p.sku;$('productCategory').value=p.category;$('productQuantity').value=p.quantity;$('productReorder').value=p.reorder;$('productCost').value=p.cost;$('productPrice').value=p.price;$('productSupplier').value=p.supplierId||''}
+  if(p){$('productName').value=p.name;$('productSku').value=p.sku;$('productBarcode').value=p.barcode||'';$('productCategory').value=p.category;$('productQuantity').value=p.quantity;$('productReorder').value=p.reorder;$('productCost').value=p.cost;$('productPrice').value=p.price;$('productSupplier').value=p.supplierId||''}
   $('productQuantity').disabled=Boolean(p);$('productDialog').showModal();
 }
 function openMovement(productId=''){$('movementForm').reset();$('movementError').textContent='';fillSelects();$('movementProduct').value=productId;$('movementDialog').showModal()}
+function productByCode(value){const code=String(value||'').trim().toLowerCase();return code?db.products.find(item=>(item.barcode||'').toLowerCase()===code||item.sku.toLowerCase()===code):null}
+$('movementLookup').addEventListener('input',event=>{const product=productByCode(event.target.value);if(product){$('movementProduct').value=product.id;$('movementError').textContent='';}});
+$('movementLookup').addEventListener('change',event=>{if(event.target.value.trim()&&!productByCode(event.target.value))$('movementError').textContent='No product matches that SKU or barcode.';});
+let scannerStream=null,scannerMode=null,scannerRunning=false;
+async function startBarcodeScanner(mode){
+  scannerMode=mode;$('barcodeStatus').textContent='';$('barcodeDialog').showModal();
+  if(!('BarcodeDetector' in window)){ $('barcodeStatus').textContent='Barcode detection is not supported in this browser. Enter the barcode manually, or use a browser with BarcodeDetector support.';return; }
+  try{
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access is unavailable. Use HTTPS or localhost and enter the code manually.');
+    const formats=['code_128','ean_13','ean_8','upc_a','upc_e','qr_code','data_matrix','itf'];
+    let detector;try{const supported=await BarcodeDetector.getSupportedFormats();detector=new BarcodeDetector({formats:formats.filter(format=>supported.includes(format))});}catch{detector=new BarcodeDetector();}
+    scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    if(!$('barcodeDialog').open){stopBarcodeScanner();return;}
+    const video=$('barcodeVideo');video.srcObject=scannerStream;await video.play();
+    if(!$('barcodeDialog').open){stopBarcodeScanner();return;}
+    scannerRunning=true;$('barcodeStatus').textContent='Point the camera at a product barcode.';
+    const scan=async()=>{if(!scannerRunning)return;try{const codes=await detector.detect(video);if(codes.length&&handleScannedCode(codes[0].rawValue))return;}catch{}setTimeout(scan,180);};scan();
+  }catch(error){$('barcodeStatus').textContent=error.message||'Camera could not be started. Enter the code manually.';stopBarcodeScanner();}
+}
+function stopBarcodeScanner(){scannerRunning=false;if(scannerStream){scannerStream.getTracks().forEach(track=>track.stop());scannerStream=null;}$('barcodeVideo').srcObject=null;}
+function handleScannedCode(value){
+  const code=String(value||'').trim();if(!code)return false;
+  if(scannerMode?.type==='field'){$(scannerMode.id).value=code;stopBarcodeScanner();$('barcodeDialog').close();$(scannerMode.id).focus();return true;}
+  const product=productByCode(code);
+  if(product){$('movementLookup').value=code;$('movementProduct').value=product.id;stopBarcodeScanner();$('barcodeDialog').close();$('movementQuantity').focus();return true;}
+  $('barcodeStatus').textContent=`No product matches “${code}”. Add it as a product barcode or scan again.`;return false;
+}
+$('barcodeDialog').addEventListener('close',stopBarcodeScanner);
 function openSupplier(id=''){const s=db.suppliers.find(x=>x.id===id);$('supplierForm').reset();$('supplierId').value=id;$('supplierDialogTitle').textContent=s?'Edit supplier':'Add supplier';if(s){$('supplierName').value=s.name;$('supplierContact').value=s.contact;$('supplierPhone').value=s.phone;$('supplierEmail').value=s.email;$('supplierAddress').value=s.address}$('supplierDialog').showModal()}
 
-$('productForm').addEventListener('submit',e=>{e.preventDefault();const id=$('productId').value,sku=$('productSku').value.trim();if(db.products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&p.id!==id)){toast('That SKU is already in use.');return}const old=productFor(id),product={id:id||uid('p'),name:$('productName').value.trim(),sku,category:$('productCategory').value.trim(),quantity:old?.quantity??Number($('productQuantity').value),reorder:Number($('productReorder').value),cost:Number($('productCost').value),price:Number($('productPrice').value),supplierId:$('productSupplier').value};if(old)Object.assign(old,product);else{db.products.unshift(product);if(product.quantity>0)db.movements.unshift({id:uid('m'),productId:product.id,type:'in',quantity:product.quantity,balance:product.quantity,reference:'OPENING',notes:'Opening stock',date:new Date().toISOString()})}save();$('productDialog').close();toast(old?'Product updated.':'Product added.')});
-$('movementForm').addEventListener('submit',e=>{e.preventDefault();const p=productFor($('movementProduct').value),type=$('movementType').value,qty=Number($('movementQuantity').value);if(!p){$('movementError').textContent='Choose a product.';return}if(type==='out'&&qty>p.quantity){$('movementError').textContent=`Only ${p.quantity} units are currently available.`;return}if(qty<0){$('movementError').textContent='Quantity cannot be negative.';return}p.quantity=type==='in'?p.quantity+qty:type==='out'?p.quantity-qty:qty;db.movements.unshift({id:uid('m'),productId:p.id,type,quantity:qty,balance:p.quantity,reference:$('movementReference').value.trim(),notes:$('movementNotes').value.trim(),date:new Date().toISOString()});save();$('movementDialog').close();toast('Stock movement recorded.')});
+$('productForm').addEventListener('submit',e=>{e.preventDefault();const id=$('productId').value,sku=$('productSku').value.trim(),barcode=$('productBarcode').value.trim();if(db.products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&p.id!==id)){toast('That SKU is already in use.');return}if(barcode&&db.products.some(p=>(p.barcode||'').toLowerCase()===barcode.toLowerCase()&&p.id!==id)){toast('That barcode is already assigned.');return}const old=productFor(id),product={id:id||uid('p'),name:$('productName').value.trim(),sku,barcode,category:$('productCategory').value.trim(),quantity:old?.quantity??Number($('productQuantity').value),reorder:Number($('productReorder').value),cost:Number($('productCost').value),price:Number($('productPrice').value),supplierId:$('productSupplier').value};if(old)Object.assign(old,product);else{db.products.unshift(product);if(product.quantity>0)db.movements.unshift({id:uid('m'),productId:product.id,type:'in',quantity:product.quantity,balance:product.quantity,reference:'OPENING',notes:'Opening stock',date:new Date().toISOString()})}save();$('productDialog').close();toast(old?'Product updated.':'Product added.')});
+$('movementForm').addEventListener('submit',async e=>{e.preventDefault();const productId=$('movementProduct').value,type=$('movementType').value,quantity=Number($('movementQuantity').value),button=$('movementForm').querySelector('[type="submit"]')||$('movementForm').querySelector('.btn.primary');$('movementError').textContent='';button.disabled=true;try{await postServerOperation('/api/stock-movements',{productId,type,quantity,reference:$('movementReference').value.trim(),notes:$('movementNotes').value.trim()});$('movementDialog').close();toast('Stock movement recorded.')}catch(error){$('movementError').textContent=error.message||'Stock movement could not be saved.';}finally{button.disabled=false;}});
 $('supplierForm').addEventListener('submit',e=>{e.preventDefault();const id=$('supplierId').value,old=db.suppliers.find(s=>s.id===id),supplier={id:id||uid('s'),name:$('supplierName').value.trim(),contact:$('supplierContact').value.trim(),phone:$('supplierPhone').value.trim(),email:$('supplierEmail').value.trim(),address:$('supplierAddress').value.trim()};if(old)Object.assign(old,supplier);else db.suppliers.push(supplier);save();$('supplierDialog').close();toast(old?'Supplier updated.':'Supplier added.')});
  $('shipmentForm').addEventListener('submit',e=>{e.preventDefault();const customer=$('shipmentCustomer').value.trim(),carrier=$('shipmentCarrier').value.trim(),originLabel=$('shipmentOrigin').value.trim(),destinationLabel=$('shipmentDestination').value.trim(),origin=shipmentCoordinates(originLabel),destination=shipmentCoordinates(destinationLabel);if(!customer||!carrier||!originLabel||!destinationLabel||!$('shipmentEta').value){$('shipmentError').textContent='Customer, route, carrier, and ETA are required.';return}let tracking;do{tracking=`IT-${new Date().getFullYear()}-${Math.floor(1000+Math.random()*9000)}`}while((db.shipments||[]).some(shipment=>shipment.tracking===tracking));const now=new Date().toISOString(),shipment={id:uid('sh'),tracking,customer,origin,destination,carrier,status:$('shipmentStatus').value,weight:Number($('shipmentWeight').value),value:Number($('shipmentValue').value),eta:$('shipmentEta').value,createdAt:now,updatedAt:now,events:[{id:uid('she'),status:$('shipmentStatus').value,title:$('shipmentStatus').value==='pending'?'Ready for pickup':'Shipment booked',detail:'Shipment record created in the InvenTrack logistics center.',location:origin.label,date:now}]};if(!Number.isFinite(shipment.weight)||shipment.weight<0||!Number.isFinite(shipment.value)||shipment.value<0){$('shipmentError').textContent='Weight and value must be zero or greater.';return}(db.shipments||(db.shipments=[])).unshift(shipment);selectedShipmentId=shipment.id;save();$('shipmentDialog').close();showView('logistics');toast(`${tracking} created.`)});
 
 document.addEventListener('click',e=>{
   const close=e.target.closest('[data-close-dialog]');if(close)close.closest('dialog').close();
+  const scanBarcode=e.target.closest('[data-scan-barcode]'),scanProduct=e.target.closest('[data-scan-product]'),receiveOrder=e.target.closest('[data-receive-order]');
+  if(scanBarcode)startBarcodeScanner({type:'field',id:scanBarcode.dataset.scanBarcode});
+  if(scanProduct)startBarcodeScanner({type:'product'});
+  if(receiveOrder)receivePurchaseOrder(receiveOrder.dataset.receiveOrder);
   const nav=e.target.closest('[data-view]'),go=e.target.closest('[data-go]');if(nav)showView(nav.dataset.view);if(go)showView(go.dataset.go);
   const editP=e.target.closest('[data-edit-product]'),moveP=e.target.closest('[data-move-product]'),deleteP=e.target.closest('[data-delete-product]'),editS=e.target.closest('[data-edit-supplier]'),deleteS=e.target.closest('[data-delete-supplier]'),selectShipment=e.target.closest('[data-select-shipment]'),advance=e.target.closest('[data-advance-shipment]');
   if(editP)openProduct(editP.dataset.editProduct);if(moveP)openMovement(moveP.dataset.moveProduct);
@@ -350,10 +422,11 @@ document.addEventListener('click',e=>{
   if(advance){advanceShipment(advance.dataset.advanceShipment)}
 });
 $('quickAddBtn').onclick=$('addProductBtn').onclick=()=>openProduct();$('addMovementBtn').onclick=()=>openMovement();$('addSupplierBtn').onclick=()=>openSupplier();$('addShipmentBtn').onclick=openShipment;$('advanceShipmentBtn').onclick=()=>advanceShipment($('advanceShipmentBtn').dataset.advanceShipment);$('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');$('productSearch').oninput=renderProducts;$('categoryFilter').onchange=renderProducts;$('stockFilter').onchange=renderProducts;$('shipmentSearch').oninput=renderLogistics;$('shipmentStatusFilter').onchange=renderLogistics;$('clearShipmentFilter').onclick=()=>{$('shipmentSearch').value='';$('shipmentStatusFilter').value='';renderLogistics()};
+$('createPurchaseOrdersBtn').onclick=createPurchaseOrders;
 $('dashboardDate').textContent=new Intl.DateTimeFormat('en-IN',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
 $('dashboardSearchForm').addEventListener('submit',event=>{event.preventDefault();const query=$('dashboardSearch').value.trim();$('productSearch').value=query;showView('products');renderProducts();if(query)toast(`Showing products matching “${query}”.`)});
-$('resetDataBtn').onclick=()=>{if(confirm('Reset all records to the original demo data?')){db=structuredClone(seed);save();toast('Demo data restored.')}};
-$('exportBtn').onclick=()=>{const headers=['Name','SKU','Category','Quantity','Reorder Level','Cost Price','Selling Price','Inventory Value','Gross Margin','Supplier','Status'];const rows=db.products.map(p=>[p.name,p.sku,p.category,p.quantity,p.reorder,p.cost,p.price,p.quantity*p.cost,p.quantity*(p.price-p.cost),db.suppliers.find(s=>s.id===p.supplierId)?.name||'',statusFor(p)[0]]);const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`inventrack-inventory-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);toast('Inventory exported.')};
+$('resetDataBtn').onclick=async()=>{if(!confirm('Reset all records to the original demo data?'))return;try{await postServerOperation('/api/demo-reset',{});toast('Demo data restored.')}catch(error){toast(error.message||'Demo data could not be restored.')}};
+$('exportBtn').onclick=()=>{const headers=['Name','SKU','Barcode','Category','Quantity','Reorder Level','Cost Price','Selling Price','Inventory Value','Gross Margin','Supplier','Status'];const rows=db.products.map(p=>[p.name,p.sku,p.barcode||'',p.category,p.quantity,p.reorder,p.cost,p.price,p.quantity*p.cost,p.quantity*(p.price-p.cost),db.suppliers.find(s=>s.id===p.supplierId)?.name||'',statusFor(p)[0]]);const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`inventrack-inventory-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);toast('Inventory exported.')};
 $('importBtn').onclick=()=>$('importFile').click();
 $('importFile').onchange=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{importProductsFromCsv(reader.result)}catch(error){toast(error.message)}finally{e.target.value=''}};reader.readAsText(file)};
 window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(viewMeta[v])showView(v)});

@@ -14,7 +14,7 @@ The dashboard includes role-based workspaces for administrators, suppliers, dist
 
 The local demo remains frictionless by default. Production deployments can enable the built-in session authentication layer with `AUTH_REQUIRED=true`; authenticated records are scoped to an organization and inventory writes are limited to administrators and wholesalers.
 
-**Live portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site) · **Release:** `v2.6.0`
+**Local release:** `v2.7.0` · **Portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site)
 
 For the path from MCA submission to a paid pilot, follow the [production checklist](docs/PRODUCTION_CHECKLIST.md) and [launch guide](LAUNCH.md).
 
@@ -82,7 +82,7 @@ These previews are useful on GitHub when the live demo is sleeping or unavailabl
 | **Programme** | Master of Computer Applications (MCA) |
 | **Course Component** | Academic Mini Project |
 | **Domain** | Inventory Management & Enterprise Information Systems |
-| **Version** | `2.6.0` (Secure Pilot Foundation Release) |
+| **Version** | `2.7.0` (Stock Operations Upgrade) |
 | **Academic Year** | 2026 |
 | **Persistence** | SQLite core database with `localStorage` used only as an offline browser backup and workspace preference store |
 | **Target Platforms** | Modern Chromium, Gecko, and WebKit Browsers (Desktop, Tablet, Mobile) |
@@ -211,17 +211,24 @@ The data layer models an operational supply chain using normalized entity relati
 * **3D Distribution Intelligence:** A true WebGL Earth mesh with geographic texture, drag rotation, tilt, scroll zoom, reset controls, country labels, sales territories, shipment routes, status markers, route counts, growth signals, and regional business context.
 * **Product Portfolio View:** Visual catalogue cards backed by generated product imagery, stock status, market value, margin rate, supplier link, and detail actions.
 * **Shipping & Tracking Center:** Database-backed shipment records with delivery KPIs, status filters, activity heatmap, route map, tracking history, ETA visibility, and a create-shipment workflow.
+* **Barcode Workflow:** Store a product barcode, scan it with a supported device camera, and select matching products in the stock movement workflow. SKU scanning and manual entry remain available as fallbacks.
+* **Server-Side Stock Transactions:** Stock-in, stock-out, and quantity adjustments are validated and committed with their movement audit entry in one SQLite transaction. Existing movement records are retained when the catalogue is saved.
+* **Supplier Purchase Orders:** Create supplier-grouped orders from the reorder plan and receive orders into stock with linked audit movements. Receiving is atomic and cannot be repeated.
 * **Local Inventory Assistant:** Built-in chatbot that answers inventory questions from the current database without sending stock data to a third-party AI service.
 * **Dual-Direction CSV Engine:**
-  * **Export:** One-click CSV generation capturing full catalogue records, computed valuations, margins, and supplier names.
-  * **Import:** Client-side CSV parser supporting RFC 4180 quoting, header validation, duplicate SKU detection, and auto-generated opening stock audit records.
+  * **Export:** One-click CSV generation capturing catalogue records, barcodes, computed valuations, margins, and supplier names.
+  * **Import:** Client-side CSV parser supporting RFC 4180 quoting, header validation, optional barcodes, duplicate SKU and barcode detection, and auto-generated opening stock audit records.
 * **Defensive Input Handling:** Built-in HTML character escaping to safeguard against Cross-Site Scripting (XSS) during dynamic DOM rendering.
 
 ---
 
 ## Changelog & Chronological Development
 
-### Latest Project Update - September 20, 2026
+### Latest Project Update - September 24, 2026
+
+Version 2.7.0 adds optional product barcodes and camera scanning for supported browsers, dedicated server-side stock transactions, append-only movement history during regular inventory saves, and supplier purchase orders generated from reorder suggestions. Receiving a purchase order updates product stock and records each receipt in the movement ledger in one transaction.
+
+### Previous Project Update - September 20, 2026
 
 The project was upgraded into a more complete full-stack management dashboard. The latest version includes a professional midnight-indigo interface with cyan and coral accents, larger readable labels, solid dashboard panels, sharp charts, visible database status, safer backend saving, SQLite WAL mode, and restricted static-file serving.
 
@@ -453,14 +460,14 @@ The following matrix outlines test cases to verify application behavior:
 
 ### Current Scope & Limitations
 * **Local Deployment Scope:** The SQLite database is local to the computer running `server.js`; deploying it for multiple users requires hosting the Node.js server and securing it with authentication.
-* **Single-Tenant Execution:** Authentication is simulation/role-preference based; it does not feature encrypted passwords or session tokens.
+* **Single-Organization Pilot:** Optional scrypt-backed authentication, HTTP-only sessions, and server-enforced roles are available, but self-service organization and user management are not yet included.
 * **Dataset Scale:** Designed for small-to-medium business catalogues and classroom presentations.
 
 ### Future Development Roadmap
 * [ ] **Cloud Deployment:** Deploy the Node.js API and migrate SQLite to PostgreSQL or MongoDB for multi-user access.
-* [ ] **Authentication & Access Control:** JWT-based login with multi-user permissions (Sales Associate, Stock Auditor, System Administrator).
+* [ ] **Account Administration:** User invitations, password recovery, rate limits, and managed identity for broader deployments.
 * [ ] **Barcode & QR Code Scanner:** WebRTC camera integration for rapid barcode product scanning.
-* [ ] **Procurement & Invoicing Workflows:** PDF invoice generation for customer sales and supplier purchase orders.
+* [ ] **Procurement & Invoicing Workflows:** Partial purchase-order receipts, customer sales orders, and PDF invoices.
 * [ ] **Advanced Visual Analytics:** Interactive Chart.js / D3.js visualizations for stock turnover velocity and forecasting.
 
 ---

@@ -5,15 +5,16 @@ This project is a strong MCA portfolio release and a working local management sy
 ## Already ready
 
 - Responsive dashboard with products, suppliers, shipments, analytics, assistant, audit log, and interactive WebGL Earth.
-- Node.js HTTP API with SQLite persistence, validation, transactions, revision conflict protection, and a health endpoint.
+- Node.js HTTP API with SQLite persistence, validation, transactions, revision conflict protection, dedicated stock movements and purchase orders, and a health endpoint.
+- Optional scrypt-backed login, HTTP-only sessions, server-side role checks, and organization-scoped records.
 - Visitor pulse endpoint with daily de-duplication and no IP-address storage.
 - Static portfolio deployment with seeded demo data, GitHub releases, architecture notes, and automated backend tests.
 
 ## Required before a paid pilot
 
 1. **Production database:** run the API on a host with persistent storage, or migrate the adapter to managed PostgreSQL. Enable daily backups and test a restore.
-2. **Authentication:** add a confirmed identity provider and enforce roles on the server. The current role selector is a presentation preference, not security.
-3. **Organization isolation:** add an organization/company ID to every business table and verify ownership in every read and write endpoint.
+2. **Account administration:** add user invitations, password recovery, rate limiting, and a managed identity provider before self-service onboarding. The built-in session layer supports a protected pilot when enabled.
+3. **Organization onboarding:** provide a tested company provisioning and membership flow; keep ownership checks on every new endpoint.
 4. **API deployment:** deploy `server.js` with `HOST=0.0.0.0`, a persistent `DB_PATH` when using SQLite, and `CORS_ORIGIN` only when the frontend is on another origin. Keep `runtime-config.js` pointed at the API origin.
 5. **Domain and HTTPS:** attach a domain in the hosting provider, configure DNS, and confirm HTTPS before sharing the app with customers.
 6. **Privacy and support:** publish a privacy notice, retention policy, support email, export/delete process, and incident contact. The visitor counter should remain opt-in or be disclosed according to the chosen jurisdiction.

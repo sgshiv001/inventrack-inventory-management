@@ -80,19 +80,26 @@ db.exec(`PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, email TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('admin', 'wholesaler', 'retailer')), created_at TEXT NOT NULL, UNIQUE(organization_id, email));
   CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', name TEXT NOT NULL, contact TEXT, phone TEXT, email TEXT, address TEXT);
-  CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', name TEXT NOT NULL, sku TEXT NOT NULL COLLATE NOCASE UNIQUE, category TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity >= 0), reorder_level INTEGER NOT NULL CHECK(reorder_level >= 0), cost REAL NOT NULL CHECK(cost >= 0), price REAL NOT NULL CHECK(price >= 0), supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL);
+  CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', name TEXT NOT NULL, sku TEXT NOT NULL COLLATE NOCASE UNIQUE, barcode TEXT NOT NULL DEFAULT '', category TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity >= 0), reorder_level INTEGER NOT NULL CHECK(reorder_level >= 0), cost REAL NOT NULL CHECK(cost >= 0), price REAL NOT NULL CHECK(price >= 0), supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL);
   CREATE TABLE IF NOT EXISTS movements (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', product_id TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('in', 'out', 'adjustment')), quantity INTEGER NOT NULL CHECK(quantity >= 0), balance INTEGER NOT NULL CHECK(balance >= 0), reference TEXT, notes TEXT, date TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS sales_regions (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', city TEXT NOT NULL, country TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, sales REAL NOT NULL CHECK(sales >= 0), units INTEGER NOT NULL CHECK(units >= 0), status TEXT NOT NULL CHECK(status IN ('healthy', 'watch', 'risk')));
   CREATE TABLE IF NOT EXISTS shipments (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', tracking TEXT NOT NULL COLLATE NOCASE UNIQUE, customer TEXT NOT NULL, origin TEXT NOT NULL, origin_lat REAL NOT NULL, origin_lng REAL NOT NULL, destination TEXT NOT NULL, destination_lat REAL NOT NULL, destination_lng REAL NOT NULL, carrier TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending', 'in-transit', 'delivered', 'delayed')), weight REAL NOT NULL CHECK(weight >= 0), value REAL NOT NULL CHECK(value >= 0), eta TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS shipment_events (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL DEFAULT 'org_demo', shipment_id TEXT NOT NULL REFERENCES shipments(id) ON DELETE CASCADE, status TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL, location TEXT NOT NULL, date TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS visitor_events (visitor_id TEXT NOT NULL, visit_date TEXT NOT NULL, path TEXT NOT NULL, visited_at TEXT NOT NULL, PRIMARY KEY (visitor_id, visit_date));`);
+  CREATE TABLE IF NOT EXISTS visitor_events (visitor_id TEXT NOT NULL, visit_date TEXT NOT NULL, path TEXT NOT NULL, visited_at TEXT NOT NULL, PRIMARY KEY (visitor_id, visit_date));
+  CREATE TABLE IF NOT EXISTS purchase_orders (id TEXT PRIMARY KEY, organization_id TEXT NOT NULL, supplier_id TEXT NOT NULL, supplier_name TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('ordered','received')), created_at TEXT NOT NULL, received_at TEXT);
+  CREATE TABLE IF NOT EXISTS purchase_order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE, product_id TEXT NOT NULL, product_name TEXT NOT NULL, sku TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity > 0), unit_cost REAL NOT NULL CHECK(unit_cost >= 0));`);
 
-const organizationTables = ['suppliers', 'products', 'movements', 'sales_regions', 'shipments', 'shipment_events'];
+const productColumns = db.prepare('PRAGMA table_info(products)').all();
+if (!productColumns.some(column => column.name === 'barcode')) db.exec("ALTER TABLE products ADD COLUMN barcode TEXT NOT NULL DEFAULT ''");
+const purchaseOrderColumns=db.prepare('PRAGMA table_info(purchase_orders)').all();
+if(!purchaseOrderColumns.some(column=>column.name==='supplier_name'))db.exec("ALTER TABLE purchase_orders ADD COLUMN supplier_name TEXT NOT NULL DEFAULT ''");
+const organizationTables = ['suppliers', 'products', 'movements', 'sales_regions', 'shipments', 'shipment_events', 'purchase_orders'];
 for (const table of organizationTables) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some(column => column.name === 'organization_id')) db.exec(`ALTER TABLE ${table} ADD COLUMN organization_id TEXT`);
   db.prepare(`UPDATE ${table} SET organization_id=? WHERE organization_id IS NULL OR organization_id=''`).run(DEMO_ORG_ID);
 }
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode_nocase ON products(organization_id, barcode COLLATE NOCASE) WHERE barcode <> '';");
 db.exec(`CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
   CREATE INDEX IF NOT EXISTS idx_products_organization ON products(organization_id);
   CREATE INDEX IF NOT EXISTS idx_movements_organization ON movements(organization_id);
@@ -162,30 +169,54 @@ function ensureAdminUser() {
 
 function rows(organizationId = DEMO_ORG_ID) {
   const shipments = db.prepare('SELECT id, tracking, customer, origin, origin_lat AS originLat, origin_lng AS originLng, destination, destination_lat AS destinationLat, destination_lng AS destinationLng, carrier, status, weight, value, eta, created_at AS createdAt, updated_at AS updatedAt FROM shipments WHERE organization_id=? ORDER BY updated_at DESC').all(organizationId);
+  const purchaseOrders=db.prepare('SELECT id, supplier_id AS supplierId, supplier_name AS supplierName, status, created_at AS createdAt, received_at AS receivedAt FROM purchase_orders WHERE organization_id=? ORDER BY created_at DESC').all(organizationId).map(order=>{
+    const items=db.prepare('SELECT product_id AS productId, product_name AS name, sku, quantity, unit_cost AS unitCost FROM purchase_order_items WHERE order_id=?').all(order.id);
+    return {...order,items,total:items.reduce((total,item)=>total+item.quantity*item.unitCost,0)};
+  });
   return {
     revision: db.prepare("SELECT value FROM metadata WHERE key='revision'").get().value,
     suppliers: db.prepare('SELECT id, name, contact, phone, email, address FROM suppliers WHERE organization_id=? ORDER BY name').all(organizationId),
-    products: db.prepare('SELECT id, name, sku, category, quantity, reorder_level AS reorder, cost, price, COALESCE(supplier_id, \'\') AS supplierId FROM products WHERE organization_id=? ORDER BY rowid DESC').all(organizationId),
+    products: db.prepare('SELECT id, name, sku, barcode, category, quantity, reorder_level AS reorder, cost, price, COALESCE(supplier_id, \'\') AS supplierId FROM products WHERE organization_id=? ORDER BY rowid DESC').all(organizationId),
     movements: db.prepare('SELECT id, product_id AS productId, type, quantity, balance, reference, notes, date FROM movements WHERE organization_id=? ORDER BY date DESC').all(organizationId),
     regions: db.prepare('SELECT id, city, country, latitude, longitude, sales, units, status FROM sales_regions WHERE organization_id=? ORDER BY sales DESC').all(organizationId),
-    shipments: shipments.map(shipment => ({ ...shipment, origin: { label: shipment.origin, latitude: shipment.originLat, longitude: shipment.originLng }, destination: { label: shipment.destination, latitude: shipment.destinationLat, longitude: shipment.destinationLng }, events: db.prepare('SELECT id, status, title, detail, location, date FROM shipment_events WHERE organization_id=? AND shipment_id=? ORDER BY date DESC').all(organizationId, shipment.id) }))
+    shipments: shipments.map(shipment => ({ ...shipment, origin: { label: shipment.origin, latitude: shipment.originLat, longitude: shipment.originLng }, destination: { label: shipment.destination, latitude: shipment.destinationLat, longitude: shipment.destinationLng }, events: db.prepare('SELECT id, status, title, detail, location, date FROM shipment_events WHERE organization_id=? AND shipment_id=? ORDER BY date DESC').all(organizationId, shipment.id) })),
+    purchaseOrders
   };
 }
 function visitorStats() {
   const stats = db.prepare("SELECT COUNT(DISTINCT visitor_id) AS totalVisitors, COUNT(DISTINCT CASE WHEN visit_date=date('now') THEN visitor_id END) AS todayVisitors, COUNT(DISTINCT CASE WHEN visit_date>=date('now','-6 day') THEN visitor_id END) AS weekVisitors FROM visitor_events").get();
   return { totalVisitors: stats.totalVisitors, todayVisitors: stats.todayVisitors, weekVisitors: stats.weekVisitors };
 }
-function replaceInventory(payload, organizationId = DEMO_ORG_ID) {
+function replaceInventory(payload, organizationId = DEMO_ORG_ID, {resetDemo=false} = {}) {
   if (!payload || !Array.isArray(payload.suppliers) || !Array.isArray(payload.products) || !Array.isArray(payload.movements)) throw new Error('Expected suppliers, products, and movements arrays.');
   for (const collection of [payload.suppliers, payload.products, payload.movements, payload.regions || [], payload.shipments || []]) {
     if (!Array.isArray(collection) || collection.length > 10000) throw new Error('Invalid collection size.');
     for (const item of collection) if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(item.id)) throw new Error('Invalid record ID.');
   }
+  const newProducts=new Map(), productIds=new Set(payload.products.map(product=>product.id));
+  if(!resetDemo){
+    const orderedItems=db.prepare("SELECT DISTINCT poi.product_id AS productId FROM purchase_order_items poi JOIN purchase_orders po ON po.id=poi.order_id WHERE po.organization_id=? AND po.status='ordered'").all(organizationId);
+    if(orderedItems.some(item=>!productIds.has(item.productId)))throw new Error('Receive outstanding purchase orders before deleting their products.');
+  }
   for (const p of payload.products) {
     if (![p.name,p.sku,p.category].every(v=>typeof v==='string' && v.trim() && v.length<=100)) throw new Error('Product name, SKU and category are required.');
     if (![p.quantity,p.reorder].every(v=>Number.isSafeInteger(v)&&v>=0) || ![p.cost,p.price].every(v=>Number.isFinite(v)&&v>=0)) throw new Error('Invalid product quantity or price.');
+    if(p.barcode!==undefined&&(typeof p.barcode!=='string'||p.barcode.length>100))throw new Error('Invalid product barcode.');
+    const current=db.prepare('SELECT quantity FROM products WHERE id=? AND organization_id=?').get(p.id,organizationId);
+    if(!resetDemo&&current&&current.quantity!==p.quantity)throw new Error('Use a stock movement to change an existing product quantity.');
+    if(!current)newProducts.set(p.id,p);
   }
-  for (const m of payload.movements) if (![m.quantity,m.balance].every(v=>Number.isSafeInteger(v)&&v>=0) || !Number.isFinite(Date.parse(m.date))) throw new Error('Invalid stock movement.');
+  const openingCounts=new Map();
+  for (const m of payload.movements){
+    if (![m.quantity,m.balance].every(v=>Number.isSafeInteger(v)&&v>=0) || !Number.isFinite(Date.parse(m.date))) throw new Error('Invalid stock movement.');
+    if(resetDemo)continue;
+    const existing=db.prepare('SELECT organization_id FROM movements WHERE id=?').get(m.id);
+    if(existing){if(existing.organization_id!==organizationId)throw new Error('Movement belongs to another organization.');continue;}
+    const product=newProducts.get(m.productId);
+    if(!product||m.type!=='in'||m.quantity!==product.quantity||m.balance!==product.quantity||!['OPENING','CSV IMPORT'].includes(m.reference))throw new Error('New movements must record opening stock for a new product.');
+    openingCounts.set(m.productId,(openingCounts.get(m.productId)||0)+1);
+  }
+  if(!resetDemo)for(const product of newProducts.values())if((openingCounts.get(product.id)||0)!==(product.quantity>0?1:0))throw new Error('Each new product needs one matching opening-stock movement.');
   const shipmentStatuses = new Set(['pending','in-transit','delivered','delayed']);
   for (const s of (payload.shipments || [])) {
     if (![s.tracking,s.customer,s.origin?.label,s.destination?.label,s.carrier,s.eta].every(v=>typeof v==='string' && v.trim() && v.length<=120)) throw new Error('Shipment tracking, customer, route, carrier and ETA are required.');
@@ -194,22 +225,25 @@ function replaceInventory(payload, organizationId = DEMO_ORG_ID) {
     for (const event of s.events) if (!event || typeof event.id !== 'string' || !shipmentStatuses.has(event.status) || ![event.title,event.detail,event.location,event.date].every(v=>typeof v==='string' && v.trim() && v.length<=240) || !Number.isFinite(Date.parse(event.date))) throw new Error('Invalid shipment event.');
   }
   const insertSupplier = db.prepare('INSERT INTO suppliers (id, organization_id, name, contact, phone, email, address) VALUES (?, ?, ?, ?, ?, ?, ?)');
-  const insertProduct = db.prepare('INSERT INTO products (id, organization_id, name, sku, category, quantity, reorder_level, cost, price, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insertProduct = db.prepare('INSERT INTO products (id, organization_id, name, sku, barcode, category, quantity, reorder_level, cost, price, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insertMovement = db.prepare('INSERT INTO movements (id, organization_id, product_id, type, quantity, balance, reference, notes, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insertRegion = db.prepare('INSERT INTO sales_regions (id, organization_id, city, country, latitude, longitude, sales, units, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insertShipment = db.prepare('INSERT INTO shipments (id, organization_id, tracking, customer, origin, origin_lat, origin_lng, destination, destination_lat, destination_lng, carrier, status, weight, value, eta, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insertShipmentEvent = db.prepare('INSERT INTO shipment_events (id, organization_id, shipment_id, status, title, detail, location, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   db.exec('BEGIN');
   try {
+    if(resetDemo){
+      db.prepare('DELETE FROM purchase_orders WHERE organization_id=?').run(organizationId);
+      db.prepare('DELETE FROM movements WHERE organization_id=?').run(organizationId);
+    }
     db.prepare('DELETE FROM shipment_events WHERE organization_id=?').run(organizationId);
     db.prepare('DELETE FROM shipments WHERE organization_id=?').run(organizationId);
-    db.prepare('DELETE FROM movements WHERE organization_id=?').run(organizationId);
     db.prepare('DELETE FROM products WHERE organization_id=?').run(organizationId);
     db.prepare('DELETE FROM suppliers WHERE organization_id=?').run(organizationId);
     if (payload.regions) db.prepare('DELETE FROM sales_regions WHERE organization_id=?').run(organizationId);
     for (const s of payload.suppliers) insertSupplier.run(s.id, organizationId, s.name, s.contact || '', s.phone || '', s.email || '', s.address || '');
-    for (const p of payload.products) insertProduct.run(p.id, organizationId, p.name, p.sku, p.category, p.quantity, p.reorder, p.cost, p.price, p.supplierId || null);
-    for (const m of payload.movements) insertMovement.run(m.id, organizationId, m.productId, m.type, m.quantity, m.balance, m.reference || '', m.notes || '', m.date);
+    for (const p of payload.products) insertProduct.run(p.id, organizationId, p.name, p.sku, p.barcode || '', p.category, p.quantity, p.reorder, p.cost, p.price, p.supplierId || null);
+    for (const m of payload.movements) db.prepare('INSERT OR IGNORE INTO movements (id, organization_id, product_id, type, quantity, balance, reference, notes, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(m.id, organizationId, m.productId, m.type, m.quantity, m.balance, m.reference || '', m.notes || '', m.date);
     for (const region of (payload.regions || [])) insertRegion.run(region.id, organizationId, region.city, region.country, region.latitude, region.longitude, region.sales, region.units, region.status);
     for (const s of (payload.shipments || [])) {
       insertShipment.run(s.id, organizationId, s.tracking, s.customer, s.origin.label, s.origin.latitude, s.origin.longitude, s.destination.label, s.destination.latitude, s.destination.longitude, s.carrier, s.status, s.weight, s.value, s.eta, s.createdAt, s.updatedAt);
@@ -219,7 +253,7 @@ function replaceInventory(payload, organizationId = DEMO_ORG_ID) {
   } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 if (!db.prepare("SELECT 1 FROM metadata WHERE key='initialized'").get()) {
-  if (!db.prepare('SELECT 1 FROM products WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID) && !db.prepare('SELECT 1 FROM suppliers WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID)) replaceInventory(seed, DEMO_ORG_ID);
+  if (!db.prepare('SELECT 1 FROM products WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID) && !db.prepare('SELECT 1 FROM suppliers WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID)) replaceInventory(seed, DEMO_ORG_ID, {resetDemo:true});
   db.prepare("INSERT INTO metadata VALUES ('initialized',1)").run();
 }
 if (!db.prepare('SELECT 1 FROM sales_regions WHERE organization_id=? LIMIT 1').get(DEMO_ORG_ID)) {
@@ -244,6 +278,7 @@ db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('webgl-eart
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('visitor-counter-20260917', 'Visitor pulse counter', 'Added a privacy-friendly unique visitor counter backed by SQLite with daily de-duplication, a seven-day pulse, and a local fallback for the hosted static portfolio demo. No IP addresses or personal data are stored.', '2026-09-17T14:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('production-readiness-20260917', 'Production readiness foundation', 'Added runtime API-origin configuration, controlled CORS support for split hosting, environment templates, and a documented production checklist for authentication, organization isolation, backups, domain setup, and privacy.', '2026-09-17T15:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('secure-pilot-foundation-20260920', 'Secure pilot foundation', 'Added optional scrypt-backed authentication, expiring HTTP-only sessions, server-side role enforcement, organization-scoped inventory queries, and automated auth coverage. Demo mode remains available when authentication is disabled.', '2026-09-20T10:00:00Z');
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('operations-upgrade-20260924', 'Stock transactions, barcode scanning and purchase orders', 'Added product barcodes and browser camera scanning, atomic role-protected stock transactions with append-only movement history, supplier purchase orders generated from reorder suggestions, and transactional order receiving.', '2026-09-24T09:00:00Z');
 function send(res, code, body, type = 'application/json', extraHeaders = {}) { const headers={ 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', ...extraHeaders }; if(CORS_ORIGIN){headers['Access-Control-Allow-Origin']=CORS_ORIGIN;headers['Access-Control-Allow-Methods']='GET, PUT, POST, OPTIONS';headers['Access-Control-Allow-Headers']='Content-Type';headers['Access-Control-Allow-Credentials']='true';headers.Vary='Origin'} res.writeHead(code, headers); res.end(type === 'application/json' && !Buffer.isBuffer(body) ? JSON.stringify(body) : body); }
 function originAllowed(req) { const origin=req.headers.origin; if(!origin)return true; try { const requestOrigin=new URL(origin),hostOrigin=`${requestOrigin.protocol}//${req.headers.host}`; return origin===hostOrigin || (CORS_ORIGIN && origin===CORS_ORIGIN); } catch { return false; } }
 function body(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) reject(new Error('Request body is too large.')); }); req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { reject(new Error('Invalid JSON.')); } }); }); }
@@ -252,6 +287,60 @@ function requireUser(req, res, roles = []) {
   if (!user) { send(res, 401, { error: 'Authentication required.' }); return null; }
   if (roles.length && !roles.includes(user.role)) { send(res, 403, { error: 'Your role cannot perform this action.' }); return null; }
   return user;
+}
+function stockMovement(payload, organizationId) {
+  const productId=String(payload.productId||''), type=String(payload.type||''), quantity=payload.quantity;
+  if(!/^[a-zA-Z0-9_-]{1,80}$/.test(productId) || !['in','out','adjustment'].includes(type) || !Number.isSafeInteger(quantity) || quantity<0 || quantity>10000000) throw new Error('Choose a valid product, movement type, and quantity.');
+  if(type!=='adjustment' && quantity===0) throw new Error('Stock movement quantity must be greater than zero.');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const product=db.prepare('SELECT id, quantity FROM products WHERE id=? AND organization_id=?').get(productId,organizationId);
+    if(!product) throw new Error('Product was not found in this organization.');
+    const balance=type==='in'?product.quantity+quantity:type==='out'?product.quantity-quantity:quantity;
+    if(!Number.isSafeInteger(balance)||balance<0) throw new Error(`Only ${product.quantity} units are currently available.`);
+    const now=new Date().toISOString(), id=crypto.randomUUID().replaceAll('-','');
+    db.prepare('UPDATE products SET quantity=? WHERE id=? AND organization_id=?').run(balance,productId,organizationId);
+    db.prepare('INSERT INTO movements (id,organization_id,product_id,type,quantity,balance,reference,notes,date) VALUES (?,?,?,?,?,?,?,?,?)').run(id,organizationId,productId,type,quantity,balance,String(payload.reference||'').slice(0,120),String(payload.notes||'').slice(0,240),now);
+    db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
+  } catch(error){db.exec('ROLLBACK');throw error;}
+}
+function createPurchaseOrder(payload, organizationId) {
+  const supplierId=String(payload.supplierId||''), items=payload.items;
+  if(!/^[a-zA-Z0-9_-]{1,80}$/.test(supplierId)||!Array.isArray(items)||!items.length||items.length>200) throw new Error('Choose a supplier and at least one purchase-order item.');
+  const supplier=db.prepare('SELECT name FROM suppliers WHERE id=? AND organization_id=?').get(supplierId,organizationId);
+  if(!supplier) throw new Error('Supplier was not found in this organization.');
+  const orderId=`po${crypto.randomUUID().replaceAll('-','')}`, now=new Date().toISOString(), seen=new Set();
+  db.exec('BEGIN');
+  try {
+    db.prepare("INSERT INTO purchase_orders(id,organization_id,supplier_id,supplier_name,status,created_at) VALUES(?,?,?,?,'ordered',?)").run(orderId,organizationId,supplierId,supplier.name,now);
+    for(const item of items){
+      const productId=String(item.productId||''), quantity=item.quantity;
+      if(!/^[a-zA-Z0-9_-]{1,80}$/.test(productId)||seen.has(productId)||!Number.isSafeInteger(quantity)||quantity<=0||quantity>10000000) throw new Error('Purchase order contains an invalid or duplicate item.');
+      seen.add(productId);
+      const product=db.prepare('SELECT id,name,sku,cost FROM products WHERE id=? AND organization_id=? AND supplier_id=?').get(productId,organizationId,supplierId);
+      if(!product) throw new Error('Every purchase-order item must belong to the selected supplier.');
+      db.prepare('INSERT INTO purchase_order_items(id,order_id,product_id,product_name,sku,quantity,unit_cost) VALUES(?,?,?,?,?,?,?)').run(crypto.randomUUID().replaceAll('-',''),orderId,product.id,product.name,product.sku,quantity,product.cost);
+    }
+    db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
+  } catch(error){db.exec('ROLLBACK');throw error;}
+}
+function receivePurchaseOrder(orderId, organizationId) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const order=db.prepare("SELECT id,status FROM purchase_orders WHERE id=? AND organization_id=?").get(orderId,organizationId);
+    if(!order) throw new Error('Purchase order was not found.');
+    if(order.status==='received') throw new Error('This purchase order has already been received.');
+    const items=db.prepare('SELECT product_id,quantity FROM purchase_order_items WHERE order_id=?').all(orderId), now=new Date().toISOString();
+    for(const item of items){
+      const product=db.prepare('SELECT quantity FROM products WHERE id=? AND organization_id=?').get(item.product_id,organizationId);
+      if(!product) throw new Error('A product on this order no longer exists.');
+      const balance=product.quantity+item.quantity;
+      db.prepare('UPDATE products SET quantity=? WHERE id=? AND organization_id=?').run(balance,item.product_id,organizationId);
+      db.prepare("INSERT INTO movements(id,organization_id,product_id,type,quantity,balance,reference,notes,date) VALUES(?,?,?,'in',?,?,?,?,?)").run(crypto.randomUUID().replaceAll('-',''),organizationId,item.product_id,item.quantity,balance,orderId,'Purchase order received',now);
+    }
+    db.prepare("UPDATE purchase_orders SET status='received',received_at=? WHERE id=? AND organization_id=?").run(now,orderId,organizationId);
+    db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
+  } catch(error){db.exec('ROLLBACK');throw error;}
 }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg' };
 
@@ -291,6 +380,28 @@ http.createServer(async (req, res) => {
       const payload=await body(req);
       if (payload.revision !== rows(user.organization_id).revision) return send(res,409,{error:'Inventory changed in another session. Reload before editing.'});
       replaceInventory(payload, user.organization_id); return send(res, 200, rows(user.organization_id));
+    }
+    if (url.pathname === '/api/demo-reset' && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const user=requireUser(req,res,['admin']);if(!user)return;
+      if(AUTH_REQUIRED||user.organization_id!==DEMO_ORG_ID)return send(res,403,{error:'Demo reset is available only in local demo mode.'});
+      replaceInventory(seed,DEMO_ORG_ID,{resetDemo:true});return send(res,200,rows(DEMO_ORG_ID));
+    }
+    if (url.pathname === '/api/stock-movements' && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const user=requireUser(req,res,['admin','wholesaler']);if(!user)return;
+      stockMovement(await body(req),user.organization_id);return send(res,200,rows(user.organization_id));
+    }
+    if (url.pathname === '/api/purchase-orders' && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const user=requireUser(req,res,['admin','wholesaler']);if(!user)return;
+      createPurchaseOrder(await body(req),user.organization_id);return send(res,201,rows(user.organization_id));
+    }
+    const receiveOrderMatch=url.pathname.match(/^\/api\/purchase-orders\/([a-zA-Z0-9_-]{1,80})\/receive$/);
+    if (receiveOrderMatch && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
+      const user=requireUser(req,res,['admin','wholesaler']);if(!user)return;
+      receivePurchaseOrder(receiveOrderMatch[1],user.organization_id);return send(res,200,rows(user.organization_id));
     }
     if (url.pathname === '/api/releases' && req.method === 'GET') {
       if (!requireUser(req, res)) return;
