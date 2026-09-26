@@ -8,13 +8,13 @@
 
 **InvenTrack** is a modern inventory management and operational intelligence web application built for small businesses, suppliers, distributors, and academic demonstration. It helps a company manage products, stock movements, suppliers, reorder planning, market value, inventory value, and operational activity from one clean dashboard.
 
-The project is a full-stack single-page application. The frontend is built with HTML, CSS, and JavaScript, while the backend is a Node.js server connected to a local SQLite database. Inventory data is saved in `data/inventrack.db`, and the browser keeps only workspace preferences and an offline backup.
+The project is a full-stack single-page application. The frontend uses HTML, CSS, and JavaScript, with a Node.js server and SQLite database. Inventory is stored in the OS-local InvenTrack data directory (or an explicit `DB_PATH`); the browser keeps workspace preferences and an offline backup.
 
 The dashboard includes role-based workspaces for administrators, suppliers, distributors, retailers, and wholesalers. It also includes charts, business statistics, a sales-region globe, a log book, and a local data-aware chatbot for asking inventory questions.
 
 The local demo remains frictionless by default. Production deployments can enable the built-in session authentication layer with `AUTH_REQUIRED=true`; authenticated records are scoped to an organization and inventory writes are limited to administrators and wholesalers.
 
-**Local release:** `v2.7.0` · **Portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site)
+**Local release:** `v2.8.0` · **Portfolio demo:** [Open InvenTrack](https://inventrack-portfolio.gshivanshu007.chatgpt.site)
 
 For the path from MCA submission to a paid pilot, follow the [production checklist](docs/PRODUCTION_CHECKLIST.md) and [launch guide](LAUNCH.md).
 
@@ -82,7 +82,7 @@ These previews are useful on GitHub when the live demo is sleeping or unavailabl
 | **Programme** | Master of Computer Applications (MCA) |
 | **Course Component** | Academic Mini Project |
 | **Domain** | Inventory Management & Enterprise Information Systems |
-| **Version** | `2.7.0` (Stock Operations Upgrade) |
+| **Version** | `2.8.0` (Recovery and Partial Receipts) |
 | **Academic Year** | 2026 |
 | **Persistence** | SQLite core database with `localStorage` used only as an offline browser backup and workspace preference store |
 | **Target Platforms** | Modern Chromium, Gecko, and WebKit Browsers (Desktop, Tablet, Mobile) |
@@ -128,7 +128,7 @@ InvenTrack is a **full-stack Single-Page Application (SPA)**. Node.js serves the
                                      |
 +------------------------------------+------------------------------------+
 |                      API & Persistence Layer (Node.js + SQLite)         |
-|  - `/api/inventory`                - `data/inventrack.db`               |
+|  - `/api/inventory`                - External persistent SQLite file   |
 |    (Suppliers, Products, Ledger)      (SQLite relational database)       |
 +-------------------------------------------------------------------------+
 ```
@@ -183,7 +183,7 @@ The data layer models an operational supply chain using normalized entity relati
 
 ### Storage Schema Definitions
 
-#### 1. Core Database (`data/inventrack.db`)
+#### 1. Core Database (OS-local InvenTrack directory, configurable through `DB_PATH`)
 * **`suppliers`**: SQLite supplier table with the supplier contact fields.
 * **`products`**: SQLite product table with a case-insensitive unique SKU and optional supplier foreign key.
 * **`movements`**: SQLite movement ledger table storing stock-in, stock-out, and adjustments.
@@ -213,7 +213,7 @@ The data layer models an operational supply chain using normalized entity relati
 * **Shipping & Tracking Center:** Database-backed shipment records with delivery KPIs, status filters, activity heatmap, route map, tracking history, ETA visibility, and a create-shipment workflow.
 * **Barcode Workflow:** Store a product barcode, scan it with a supported device camera, and select matching products in the stock movement workflow. SKU scanning and manual entry remain available as fallbacks.
 * **Server-Side Stock Transactions:** Stock-in, stock-out, and quantity adjustments are validated and committed with their movement audit entry in one SQLite transaction. Existing movement records are retained when the catalogue is saved.
-* **Supplier Purchase Orders:** Create supplier-grouped orders from the reorder plan and receive orders into stock with linked audit movements. Receiving is atomic and cannot be repeated.
+* **Supplier Purchase Orders:** Create supplier-grouped orders from the reorder plan, receive selected quantities, and track remaining units. Each receipt updates stock and its audit movements atomically; quantities above the remaining order balance are rejected.
 * **Local Inventory Assistant:** Built-in chatbot that answers inventory questions from the current database without sending stock data to a third-party AI service.
 * **Dual-Direction CSV Engine:**
   * **Export:** One-click CSV generation capturing catalogue records, barcodes, computed valuations, margins, and supplier names.
@@ -224,7 +224,11 @@ The data layer models an operational supply chain using normalized entity relati
 
 ## Changelog & Chronological Development
 
-### Latest Project Update - September 24, 2026
+### Latest Project Update - September 26, 2026
+
+Version 2.8.0 keeps runtime databases outside the synced repository, migrates legacy data without deleting the original, and adds integrity-checked backup and restore commands. Purchase orders now track received quantities per item and support partial deliveries. Reorder suggestions account for quantities still on order.
+
+### Previous Project Update - September 24, 2026
 
 Version 2.7.0 adds optional product barcodes and camera scanning for supported browsers, dedicated server-side stock transactions, append-only movement history during regular inventory saves, and supplier purchase orders generated from reorder suggestions. Receiving a purchase order updates product stock and records each receipt in the movement ledger in one transaction.
 
@@ -344,7 +348,7 @@ InvenTrack includes its own Node.js server and SQLite database. It uses built-in
 ```bash
 node server.js
 ```
-4. Open **`http://localhost:3000`**. The first startup creates and seeds `data/inventrack.db`.
+4. Open **`http://localhost:3000`**. The first startup migrates a legacy database or seeds the OS-local database. On Windows the default is `%LOCALAPPDATA%\InvenTrack\inventrack.db`.
 
 For development with automatic server restart:
 ```bash
@@ -358,7 +362,7 @@ Choose **Launch InvenTrack Server** in the Run and Debug panel, then press **F5*
 
 ## Deployment Notes
 
-The current project runs as a Node.js website with a SQLite database. For local use, `data/inventrack.db` is created on the same computer that runs `server.js`.
+The project runs as a Node.js website with a SQLite database stored outside the repository by default. Use `npm run db:backup` for a consistent backup and `npm run db:restore -- <backup.db> <new-destination.db>` to verify a restore without overwriting current data.
 
 ### Portfolio demo
 
@@ -466,8 +470,9 @@ The following matrix outlines test cases to verify application behavior:
 ### Future Development Roadmap
 * [ ] **Cloud Deployment:** Deploy the Node.js API and migrate SQLite to PostgreSQL or MongoDB for multi-user access.
 * [ ] **Account Administration:** User invitations, password recovery, rate limits, and managed identity for broader deployments.
-* [ ] **Barcode & QR Code Scanner:** WebRTC camera integration for rapid barcode product scanning.
-* [ ] **Procurement & Invoicing Workflows:** Partial purchase-order receipts, customer sales orders, and PDF invoices.
+* [x] **Barcode & QR Code Scanner:** Camera scanning in supported browsers, with manual SKU/barcode lookup.
+* [x] **Partial Purchase-Order Receipts:** Receive selected units while tracking outstanding quantities.
+* [ ] **Sales & Invoicing Workflows:** Customer sales orders and PDF invoices.
 * [ ] **Advanced Visual Analytics:** Interactive Chart.js / D3.js visualizations for stock turnover velocity and forecasting.
 
 ---

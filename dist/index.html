@@ -147,7 +147,7 @@
           <div class="table-wrap"><table><thead><tr><th>Product</th><th>Current</th><th>Reorder at</th><th>Suggested qty</th><th>Estimated cost</th><th>Supplier</th><th>Status</th></tr></thead><tbody id="reorderTable"></tbody></table></div>
         </article>
         <article class="panel table-panel">
-          <div class="panel-head"><div><h2>Purchase orders</h2><p>Receive an order to add its quantities to stock and record the movements.</p></div></div>
+          <div class="panel-head"><div><h2>Purchase orders</h2><p>Record full or partial deliveries and track units still on order.</p></div></div>
           <div class="table-wrap"><table><thead><tr><th>Order</th><th>Supplier</th><th>Created</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody id="purchaseOrdersTable"></tbody></table></div>
         </article>
       </section>
@@ -367,6 +367,15 @@
       </div>
       <p class="form-error" id="shipmentError"></p>
       <div class="dialog-actions"><button class="btn secondary" type="button" data-close-dialog>Cancel</button><button class="btn primary" value="default">Create shipment</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="receiptDialog">
+    <form id="receiptForm" method="dialog">
+      <div class="dialog-head"><div><h2>Receive purchase order</h2><p>Enter units received today. Use zero for items arriving later.</p></div><button type="button" class="close-btn" data-close-dialog aria-label="Close">&times;</button></div>
+      <div class="form-grid" id="receiptItems"></div>
+      <p class="form-error" id="receiptError" role="alert"></p>
+      <div class="dialog-actions"><button type="button" class="btn secondary" data-close-dialog>Cancel</button><button class="btn primary" id="receiptSubmit">Record receipt</button></div>
     </form>
   </dialog>
 

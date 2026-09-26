@@ -232,7 +232,7 @@ function renderProducts(){
 
 function suggestedReorderQty(p){return p.quantity<=p.reorder?Math.max(p.reorder*2-p.quantity,p.reorder-p.quantity):0}
 function remainingReorderQty(p){
-  const ordered=(db.purchaseOrders||[]).filter(order=>order.status==='ordered').flatMap(order=>order.items).filter(item=>item.productId===p.id).reduce((total,item)=>total+item.quantity,0);
+  const ordered=(db.purchaseOrders||[]).filter(order=>order.status!=='received').flatMap(order=>order.items).filter(item=>item.productId===p.id).reduce((total,item)=>total+item.quantity-(item.receivedQuantity||0),0);
   return Math.max(0,suggestedReorderQty(p)-ordered);
 }
 function renderReorderPlan(){
@@ -244,7 +244,7 @@ function renderReorderPlan(){
 }
 function renderPurchaseOrders(){
   const orders=db.purchaseOrders||[];
-  $('purchaseOrdersTable').innerHTML=orders.length?orders.map(order=>`<tr><td><details class="purchase-order-details"><summary title="${escapeHtml(order.id)}">PO-${escapeHtml(order.id.slice(-8).toUpperCase())}</summary><ul>${order.items.map(item=>`<li>${escapeHtml(item.name)} · ${item.quantity} × ${rupees.format(item.unitCost)}</li>`).join('')}</ul></details></td><td>${escapeHtml(order.supplierName)}</td><td>${shortDate.format(new Date(order.createdAt))}</td><td>${order.items.reduce((n,item)=>n+item.quantity,0)} units · ${order.items.length} lines</td><td>${rupees.format(order.total||0)}</td><td><span class="badge ${order.status==='received'?'good':'low'}">${order.status==='received'?'Received':'Ordered'}</span></td><td>${order.status==='received'?'--':authCanWrite()?`<button class="action-btn" data-receive-order="${escapeHtml(order.id)}">Receive</button>`:'Read only'}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No purchase orders yet. Create supplier orders from the suggested purchase list.</td></tr>';
+  $('purchaseOrdersTable').innerHTML=orders.length?orders.map(order=>`<tr><td><details class="purchase-order-details"><summary title="${escapeHtml(order.id)}">PO-${escapeHtml(order.id.slice(-8).toUpperCase())}</summary><ul>${order.items.map(item=>`<li>${escapeHtml(item.name)} · ${item.receivedQuantity||0}/${item.quantity} received · ${rupees.format(item.unitCost)} each</li>`).join('')}</ul></details></td><td>${escapeHtml(order.supplierName)}</td><td>${shortDate.format(new Date(order.createdAt))}</td><td>${order.items.reduce((n,item)=>n+(item.receivedQuantity||0),0)}/${order.items.reduce((n,item)=>n+item.quantity,0)} units received</td><td>${rupees.format(order.total||0)}</td><td><span class="badge ${order.status==='received'?'good':'low'}">${order.status==='received'?'Received':order.status==='partial'?'Partially received':'Ordered'}</span></td><td>${order.status==='received'?'--':authCanWrite()?`<button class="action-btn" data-receive-order="${escapeHtml(order.id)}">Receive</button>`:'Read only'}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No purchase orders yet. Create supplier orders from the suggested purchase list.</td></tr>';
 }
 async function createPurchaseOrders(){
   const grouped=new Map();
@@ -261,11 +261,18 @@ async function createPurchaseOrders(){
   }catch(error){toast(error.message||'Could not create purchase orders.');}
   finally{button.disabled=false;}
 }
-async function receivePurchaseOrder(orderId){
-  if(!confirm(`Receive all items on ${orderId}? Stock quantities and the movement ledger will be updated.`))return;
-  try{await postServerOperation(`/api/purchase-orders/${encodeURIComponent(orderId)}/receive`,{});toast(`${orderId} received and stock updated.`);}
-  catch(error){toast(error.message||'Purchase order could not be received.');}
+function receivePurchaseOrder(orderId){
+  const order=(db.purchaseOrders||[]).find(order=>order.id===orderId);if(!order||order.status==='received')return;
+  $('receiptForm').dataset.orderId=orderId;$('receiptError').textContent='';
+  $('receiptItems').innerHTML=order.items.filter(item=>item.quantity>(item.receivedQuantity||0)).map(item=>{const remaining=item.quantity-(item.receivedQuantity||0);return `<label class="wide">${escapeHtml(item.name)} · ${remaining} remaining<input type="number" data-receipt-product="${escapeHtml(item.productId)}" min="0" max="${remaining}" step="1" value="${remaining}" required></label>`;}).join('');
+  $('receiptDialog').showModal();
 }
+$('receiptForm').addEventListener('submit',async event=>{
+  event.preventDefault();const button=$('receiptSubmit');button.disabled=true;$('receiptError').textContent='';
+  const items=[...$('receiptItems').querySelectorAll('input')].map(input=>({productId:input.dataset.receiptProduct,quantity:Number(input.value)})).filter(item=>item.quantity>0);
+  try{await postServerOperation(`/api/purchase-orders/${encodeURIComponent($('receiptForm').dataset.orderId)}/receive`,{items});$('receiptDialog').close();toast('Receipt recorded and stock updated.');}
+  catch(error){$('receiptError').textContent=error.message||'Receipt could not be saved.';}finally{button.disabled=false;}
+});
 
 function movementRow(m,full=true){const p=productFor(m.productId),sign=m.type==='out'?'-':m.type==='in'?'+':'=';return `<tr>${full?`<td>${shortDate.format(new Date(m.date))}</td>`:''}<td><strong>${escapeHtml(p?.name||'Deleted product')}</strong></td><td><span class="badge ${m.type}">${m.type==='in'?'Stock in':m.type==='out'?'Stock out':'Adjustment'}</span></td><td class="${m.type==='out'?'qty-negative':'qty-positive'}">${sign}${m.quantity}</td>${full?`<td>${m.balance}</td>`:`<td>${shortDate.format(new Date(m.date))}</td>`}<td>${escapeHtml(m.reference||'--')}</td>${full?`<td>${escapeHtml(m.notes||'--')}</td>`:''}</tr>`}
 function renderMovements(){const rows=[...db.movements].sort((a,b)=>new Date(b.date)-new Date(a.date));$('movementsTable').innerHTML=rows.length?rows.map(m=>movementRow(m)).join(''):'<tr><td colspan="7" class="empty">No stock movements recorded.</td></tr>'}

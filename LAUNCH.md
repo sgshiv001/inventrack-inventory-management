@@ -3,13 +3,21 @@
 ## Run on your computer
 
 Install Node.js 24, open this folder in a terminal, and run `node server.js`. If you keep local settings in a `.env` file, use `node --env-file-if-exists=.env server.js`; hosting platforms should provide the same values through their environment configuration.
-Open http://localhost:3000. SQLite creates and uses `data/inventrack.db` on this computer. No separate database service is required. The header reports whether the database is connected or whether changes were saved. Product updates are stored in `release_log`; browser workspace activity remains local to that browser.
+Open http://localhost:3000. SQLite uses `%LOCALAPPDATA%\InvenTrack\inventrack.db` on Windows, or `$XDG_DATA_HOME/InvenTrack/inventrack.db` (default `~/.local/share/InvenTrack/inventrack.db`) on Linux/macOS. The default keeps runtime data outside this synced repository. On first startup, an existing repository database is copied consistently to that location and checked; the original is retained. No separate database service is required.
 
 For an unprotected academic demo, leave `AUTH_REQUIRED=false`. For a protected pilot, set `AUTH_REQUIRED=true`, `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` (at least 12 characters). The first startup creates the bootstrap administrator. Authenticated sessions use HTTP-only cookies, inventory data is scoped to the user's organization, and only administrators or wholesalers can write inventory snapshots.
 
 The Admin insights view records a daily unique visitor pulse through `/api/visits`. It uses a random browser ID, never stores IP addresses, and falls back to a device-local count in the static portfolio demo.
 
-Set `DB_PATH` to an absolute file path to choose a different database location. Set `PORT` to change the listening port. Use a local disk, not a network-synced folder. For a simple backup, stop the server cleanly and copy the entire `data` directory to a dated backup folder. Test restoring a copy before relying on backups. Never commit a customer database to Git.
+Set `DB_PATH` to an absolute file path on a persistent local disk to choose another database location. Set `PORT` to change the listening port. Runtime databases, WAL files, SHM files, and backups are ignored by Git; clean installations seed demo records automatically.
+
+## Back up and restore
+
+Run `npm run db:migrate` to preserve a legacy repository database in the default data directory. Migration never overwrites an existing destination. Keep the retained legacy copy until you have confirmed your records.
+
+Run `npm run db:backup` to create a timestamped, integrity-checked SQLite snapshot in the data directory's `backups` folder. This uses `VACUUM INTO` and includes committed WAL data even when the database is live. To choose an output path, use `npm run db:backup -- C:/Backups/inventrack-2026-09-26.db`.
+
+Restore to a new, unused file with `npm run db:restore -- <backup.db> <new-destination.db>`. The tool refuses to overwrite files. Check the restored records, stop the app server, and restart it with `DB_PATH` pointing to that restored file. Do not copy only the main database file while the app is running. Store a separate backup copy outside the machine for recovery from disk failure.
 
 For a split frontend/API deployment, copy `.env.example`, set `CORS_ORIGIN` on the API, and set `window.INVENTRACK_API_BASE` in `runtime-config.js` to the API origin. Leave it blank when the frontend and API share one domain.
 

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
+const { prepareDatabase } = require('./tools/database.cjs');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -12,7 +13,7 @@ const AUTH_REQUIRED = /^true$/i.test(String(process.env.AUTH_REQUIRED || 'false'
 const configuredSessionTtl = Number(process.env.SESSION_TTL_MS || 8 * 60 * 60 * 1000);
 const SESSION_TTL_MS = Number.isFinite(configuredSessionTtl) ? Math.max(15 * 60 * 1000, configuredSessionTtl) : 8 * 60 * 60 * 1000;
 const ROOT = __dirname;
-const DB_PATH = path.resolve(process.env.DB_PATH || path.join(ROOT, 'data', 'inventrack.db'));
+const DB_PATH = prepareDatabase(ROOT);
 const DEMO_ORG_ID = 'org_demo';
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
@@ -93,6 +94,11 @@ const productColumns = db.prepare('PRAGMA table_info(products)').all();
 if (!productColumns.some(column => column.name === 'barcode')) db.exec("ALTER TABLE products ADD COLUMN barcode TEXT NOT NULL DEFAULT ''");
 const purchaseOrderColumns=db.prepare('PRAGMA table_info(purchase_orders)').all();
 if(!purchaseOrderColumns.some(column=>column.name==='supplier_name'))db.exec("ALTER TABLE purchase_orders ADD COLUMN supplier_name TEXT NOT NULL DEFAULT ''");
+const receiptColumns=db.prepare('PRAGMA table_info(purchase_order_items)').all();
+if(!receiptColumns.some(column=>column.name==='received_quantity')){
+  db.exec('ALTER TABLE purchase_order_items ADD COLUMN received_quantity INTEGER NOT NULL DEFAULT 0 CHECK(received_quantity >= 0 AND received_quantity <= quantity)');
+  db.exec("UPDATE purchase_order_items SET received_quantity=quantity WHERE order_id IN (SELECT id FROM purchase_orders WHERE status='received')");
+}
 const organizationTables = ['suppliers', 'products', 'movements', 'sales_regions', 'shipments', 'shipment_events', 'purchase_orders'];
 for (const table of organizationTables) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -170,8 +176,8 @@ function ensureAdminUser() {
 function rows(organizationId = DEMO_ORG_ID) {
   const shipments = db.prepare('SELECT id, tracking, customer, origin, origin_lat AS originLat, origin_lng AS originLng, destination, destination_lat AS destinationLat, destination_lng AS destinationLng, carrier, status, weight, value, eta, created_at AS createdAt, updated_at AS updatedAt FROM shipments WHERE organization_id=? ORDER BY updated_at DESC').all(organizationId);
   const purchaseOrders=db.prepare('SELECT id, supplier_id AS supplierId, supplier_name AS supplierName, status, created_at AS createdAt, received_at AS receivedAt FROM purchase_orders WHERE organization_id=? ORDER BY created_at DESC').all(organizationId).map(order=>{
-    const items=db.prepare('SELECT product_id AS productId, product_name AS name, sku, quantity, unit_cost AS unitCost FROM purchase_order_items WHERE order_id=?').all(order.id);
-    return {...order,items,total:items.reduce((total,item)=>total+item.quantity*item.unitCost,0)};
+    const items=db.prepare('SELECT product_id AS productId, product_name AS name, sku, quantity, received_quantity AS receivedQuantity, unit_cost AS unitCost FROM purchase_order_items WHERE order_id=?').all(order.id);
+    return {...order,status:order.status==='ordered'&&items.some(item=>item.receivedQuantity>0)?'partial':order.status,items,total:items.reduce((total,item)=>total+item.quantity*item.unitCost,0)};
   });
   return {
     revision: db.prepare("SELECT value FROM metadata WHERE key='revision'").get().value,
@@ -324,21 +330,30 @@ function createPurchaseOrder(payload, organizationId) {
     db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
   } catch(error){db.exec('ROLLBACK');throw error;}
 }
-function receivePurchaseOrder(orderId, organizationId) {
+function receivePurchaseOrder(orderId, organizationId, payload = {}) {
   db.exec('BEGIN IMMEDIATE');
   try {
     const order=db.prepare("SELECT id,status FROM purchase_orders WHERE id=? AND organization_id=?").get(orderId,organizationId);
     if(!order) throw new Error('Purchase order was not found.');
     if(order.status==='received') throw new Error('This purchase order has already been received.');
-    const items=db.prepare('SELECT product_id,quantity FROM purchase_order_items WHERE order_id=?').all(orderId), now=new Date().toISOString();
-    for(const item of items){
+    const items=db.prepare('SELECT id,product_id,quantity,received_quantity FROM purchase_order_items WHERE order_id=?').all(orderId), now=new Date().toISOString();
+    const requested=payload.items===undefined?items.filter(item=>item.received_quantity<item.quantity).map(item=>({productId:item.product_id,quantity:item.quantity-item.received_quantity})):payload.items;
+    if(!Array.isArray(requested)||!requested.length||requested.length>200)throw new Error('Enter at least one receipt quantity.');
+    const seen=new Set();
+    for(const receipt of requested){
+      const item=items.find(item=>item.product_id===receipt?.productId);
+      if(!item||seen.has(item.product_id)||!Number.isSafeInteger(receipt.quantity)||receipt.quantity<=0||receipt.quantity>item.quantity-item.received_quantity)throw new Error('Receipt quantity must be positive and cannot exceed the units remaining on the order.');
+      seen.add(item.product_id);
       const product=db.prepare('SELECT quantity FROM products WHERE id=? AND organization_id=?').get(item.product_id,organizationId);
       if(!product) throw new Error('A product on this order no longer exists.');
-      const balance=product.quantity+item.quantity;
+      const balance=product.quantity+receipt.quantity;
+      if(!Number.isSafeInteger(balance))throw new Error('Stock quantity exceeds the supported range.');
       db.prepare('UPDATE products SET quantity=? WHERE id=? AND organization_id=?').run(balance,item.product_id,organizationId);
-      db.prepare("INSERT INTO movements(id,organization_id,product_id,type,quantity,balance,reference,notes,date) VALUES(?,?,?,'in',?,?,?,?,?)").run(crypto.randomUUID().replaceAll('-',''),organizationId,item.product_id,item.quantity,balance,orderId,'Purchase order received',now);
+      db.prepare('UPDATE purchase_order_items SET received_quantity=received_quantity+? WHERE id=?').run(receipt.quantity,item.id);
+      db.prepare("INSERT INTO movements(id,organization_id,product_id,type,quantity,balance,reference,notes,date) VALUES(?,?,?,'in',?,?,?,?,?)").run(crypto.randomUUID().replaceAll('-',''),organizationId,item.product_id,receipt.quantity,balance,orderId,'Purchase order receipt',now);
     }
-    db.prepare("UPDATE purchase_orders SET status='received',received_at=? WHERE id=? AND organization_id=?").run(now,orderId,organizationId);
+    const remaining=db.prepare('SELECT SUM(quantity-received_quantity) AS remaining FROM purchase_order_items WHERE order_id=?').get(orderId).remaining;
+    db.prepare('UPDATE purchase_orders SET status=?,received_at=? WHERE id=? AND organization_id=?').run(remaining===0?'received':'ordered',remaining===0?now:null,orderId,organizationId);
     db.exec("UPDATE metadata SET value=value+1 WHERE key='revision'; COMMIT;");
   } catch(error){db.exec('ROLLBACK');throw error;}
 }
@@ -401,7 +416,7 @@ http.createServer(async (req, res) => {
     if (receiveOrderMatch && req.method === 'POST') {
       if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
       const user=requireUser(req,res,['admin','wholesaler']);if(!user)return;
-      receivePurchaseOrder(receiveOrderMatch[1],user.organization_id);return send(res,200,rows(user.organization_id));
+      receivePurchaseOrder(receiveOrderMatch[1],user.organization_id,await body(req));return send(res,200,rows(user.organization_id));
     }
     if (url.pathname === '/api/releases' && req.method === 'GET') {
       if (!requireUser(req, res)) return;

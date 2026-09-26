@@ -29,7 +29,7 @@ The browser owns the interactive workspace and renders the dashboard, inventory 
 3. When `AUTH_REQUIRED=true`, the browser signs in through `/api/auth/login` and sends the resulting HTTP-only session cookie with API requests.
 4. Catalogue and logistics edits update the in-memory workspace and send a revision-checked snapshot. The server rejects direct quantity edits in this path and retains existing movement records.
 5. Stock-in, stock-out, and exact-quantity adjustments use `POST /api/stock-movements`. The server checks the organization and role, validates the quantity, updates stock, and appends one movement in a SQLite transaction.
-6. The reorder plan creates supplier-grouped orders through `POST /api/purchase-orders`. Receiving an order through its `/receive` endpoint adds all ordered units and their audit movements atomically; an order cannot be received twice.
+6. The reorder plan creates supplier-grouped orders through `POST /api/purchase-orders`. Its `/receive` endpoint accepts selected product quantities, adds them and their audit movements atomically, and records per-line received quantities. Over-receipts are rejected; the order remains open until all lines are received.
 7. The server returns the new inventory snapshot and revision so the browser can refresh its workspace.
 
 ## Data relationships
@@ -110,6 +110,7 @@ erDiagram
     string product_id
     int quantity
     float unit_cost
+    int received_quantity
   }
   ORGANIZATIONS {
     string id PK
@@ -158,6 +159,8 @@ erDiagram
 - Supplier cards use partner portraits and calculate each partner's linked product lines, market-value share, route activity, and low-stock exposure from the current snapshot.
 
 ## Deployment boundary
+
+The default runtime database lives in the OS-local InvenTrack data directory, outside the repository. Explicit `DB_PATH` settings override it. A legacy repository database is migrated using a consistent SQLite snapshot without deleting the original. `tools/database.cjs` provides migration, live backups, integrity checks, and restore to a new file; runtime databases are excluded from Git.
 
 The local Node.js + SQLite server is the complete academic demonstration. A hosted portfolio demo can run as a static snapshot using the browser's seeded fallback data. A commercial multi-tenant release should move the API to a managed Node-compatible host, migrate SQLite to PostgreSQL, add authentication and organization isolation, and configure backups before accepting customer data.
 

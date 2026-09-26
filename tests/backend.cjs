@@ -44,11 +44,16 @@ const post=async(path,data)=>fetch(`http://localhost:${port}${path}`,{method:'PO
  assert.equal(orderResponse.status,201);
  const withOrder=await orderResponse.json(),order=withOrder.purchaseOrders[0];
  assert.equal(order.status,'ordered');assert.equal(order.items[0].quantity,5);
+ const partialResponse=await post(`/api/purchase-orders/${order.id}/receive`,{items:[{productId:lowStockProduct.id,quantity:2}]});
+ assert.equal(partialResponse.status,200);
+ const partial=await partialResponse.json();assert.equal(partial.purchaseOrders[0].status,'partial');assert.equal(partial.purchaseOrders[0].items[0].receivedQuantity,2);
+ assert.equal((await post(`/api/purchase-orders/${order.id}/receive`,{items:[{productId:lowStockProduct.id,quantity:4}]})).status,400);
+ assert.equal((await (await get('/api/inventory')).json()).products.find(product=>product.id===lowStockProduct.id).quantity,lowStockProduct.quantity+5);
  const receiveResponse=await post(`/api/purchase-orders/${order.id}/receive`,{});assert.equal(receiveResponse.status,200);
  const received=await receiveResponse.json();
  assert.equal(received.purchaseOrders[0].status,'received');
  assert.equal(received.products.find(product=>product.id===lowStockProduct.id).quantity,lowStockProduct.quantity+8);
- assert.equal(received.movements.find(movement=>movement.reference===order.id).quantity,5);
+ assert.equal(received.movements.filter(movement=>movement.reference===order.id).reduce((total,movement)=>total+movement.quantity,0),5);
  assert.equal((await post(`/api/purchase-orders/${order.id}/receive`,{})).status,400);
  const snapshotWithoutHistory=structuredClone(received);snapshotWithoutHistory.movements=[];
  assert.equal((await put(snapshotWithoutHistory)).status,200);
