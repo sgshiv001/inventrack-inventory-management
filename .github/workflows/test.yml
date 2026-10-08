@@ -17,8 +17,14 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install locked runtime dependencies
+        run: npm ci --omit=dev --ignore-scripts
+
       - name: Check JavaScript syntax
-        run: node --check server.js && node --check app.js && node --check globe.js && node --check globe-math.js
+        run: node --check server.js && node --check app.js && node --check globe.js && node --check globe-math.js && node --check desktop/main.cjs && node --check desktop/downloads.cjs && node --check desktop/launcher.js
 
       - name: Run tests
         run: npm test
+
+      - name: Test database reporting tool
+        run: python3 -m unittest discover -s tests -p report_tool.py

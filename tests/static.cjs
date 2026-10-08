@@ -18,6 +18,7 @@ const browserFiles = [
 ];
 
 const browserAssets = [
+  'vendor/zxing-browser.min.js',
   'assets/earth-daymap.jpg',
   'assets/countries-110m.json',
   'assets/earth-globe.png',
@@ -39,4 +40,23 @@ for (const file of browserFiles) {
 
 test('static bundle includes every browser asset', () => {
   for (const asset of browserAssets) assert.ok(existsSync(path.join(dist, asset)), `Missing dist asset: ${asset}`);
+});
+test('optional product viewer is removed while the delivery globe remains',()=>{
+  assert.equal(existsSync(path.join(dist,'vendor/model-viewer.js')),false);
+  assert.doesNotMatch(readFileSync(path.join(root,'index.html'),'utf8'),/model-viewer|modelDialog|openModelsBtn/);
+  assert.doesNotMatch(readFileSync(path.join(root,'app.js'),'utf8'),/modelUploadForm|displayProductModel|openProductModels/);
+  assert.equal(Object.hasOwn(JSON.parse(readFileSync(path.join(root,'package.json'),'utf8')).dependencies,'@google/model-viewer'),false);
+  assert.match(readFileSync(path.join(root,'index.html'),'utf8'),/globe\.js/);
+});
+test('Windows installer directory is separate from inventory data',()=>{
+  const forge=require('../forge.config.cjs');
+  const installer=forge.makers.find(maker=>maker.name==='@electron-forge/maker-squirrel');
+  assert.equal(installer.config.name,'inventrack_desktop');
+  assert.notEqual(installer.config.name.toLowerCase(),'inventrack');
+});
+test('Windows-compatible barcode decoder is locally bundled',()=>{
+  const file='vendor/zxing-browser.min.js';
+  assert.deepEqual(readFileSync(path.join(root,file)),readFileSync(path.join(root,'node_modules/@zxing/browser/umd/zxing-browser.min.js')));
+  assert.deepEqual(readFileSync(path.join(root,file)),readFileSync(path.join(dist,file)));
+  assert.match(readFileSync(path.join(root,'index.html'),'utf8'),/vendor\/zxing-browser\.min\.js/);
 });

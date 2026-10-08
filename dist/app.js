@@ -1,74 +1,34 @@
-const STORE_KEY = 'inventrack_mca_v1';
-const LEGACY_STORE_KEY = 'stockflow_inventory_v1';
 const API_BASE = String(window.INVENTRACK_API_BASE || '').replace(/\/$/,'');
 const api = (path,options={}) => fetch(`${API_BASE}${path}`,{credentials:'include',...options});
 const rupees = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0});
 const shortDate = new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric'});
 
-const seed = {
-  suppliers:[
-    {id:'s1',name:'Nova Tech Distributors',contact:'Arjun Mehta',phone:'+91 98765 43210',email:'orders@novatech.example',address:'Bengaluru, Karnataka'},
-    {id:'s2',name:'GreenLeaf Wholesale',contact:'Priya Nair',phone:'+91 98220 11223',email:'sales@greenleaf.example',address:'Kochi, Kerala'},
-    {id:'s3',name:'Metro Office Supplies',contact:'Rohan Shah',phone:'+91 97654 32109',email:'hello@metrooffice.example',address:'Mumbai, Maharashtra'}
-  ],
-  products:[
-    {id:'p1',name:'Wireless Keyboard',sku:'ELEC-001',category:'Electronics',quantity:28,reorder:10,cost:1250,price:1899,supplierId:'s1'},
-    {id:'p2',name:'USB-C Hub 7-in-1',sku:'ELEC-014',category:'Electronics',quantity:7,reorder:8,cost:1750,price:2499,supplierId:'s1'},
-    {id:'p3',name:'A4 Premium Paper',sku:'STAT-021',category:'Stationery',quantity:64,reorder:15,cost:245,price:349,supplierId:'s3'},
-    {id:'p4',name:'Ergonomic Office Chair',sku:'FURN-005',category:'Furniture',quantity:4,reorder:5,cost:7200,price:9999,supplierId:'s3'},
-    {id:'p5',name:'Organic Green Tea',sku:'PAN-032',category:'Pantry',quantity:42,reorder:12,cost:180,price:275,supplierId:'s2'},
-    {id:'p6',name:'Desk Organizer',sku:'STAT-044',category:'Stationery',quantity:0,reorder:6,cost:320,price:499,supplierId:'s3'}
-  ],
-  movements:[
-    {id:'m1',productId:'p1',type:'in',quantity:20,balance:28,reference:'PO-1042',notes:'Monthly replenishment',date:'2026-08-20T09:30:00'},
-    {id:'m2',productId:'p3',type:'out',quantity:6,balance:64,reference:'SALE-218',notes:'Customer order',date:'2026-08-19T14:10:00'},
-    {id:'m3',productId:'p4',type:'out',quantity:2,balance:4,reference:'SALE-215',notes:'Corporate order',date:'2026-08-18T11:20:00'},
-    {id:'m4',productId:'p5',type:'in',quantity:24,balance:42,reference:'PO-1039',notes:'Supplier delivery',date:'2026-08-17T16:00:00'}
-  ],
-  regions:[
-    {id:'r1',city:'Mumbai',country:'India',latitude:19.076,longitude:72.877,sales:284000,units:176,status:'healthy'},
-    {id:'r2',city:'Bengaluru',country:'India',latitude:12.972,longitude:77.594,sales:219000,units:142,status:'healthy'},
-    {id:'r3',city:'Delhi',country:'India',latitude:28.614,longitude:77.209,sales:178000,units:93,status:'watch'},
-    {id:'r4',city:'Dubai',country:'UAE',latitude:25.205,longitude:55.271,sales:133000,units:61,status:'healthy'},
-    {id:'r5',city:'Singapore',country:'Singapore',latitude:1.352,longitude:103.82,sales:97000,units:48,status:'watch'},
-    {id:'r6',city:'London',country:'United Kingdom',latitude:51.507,longitude:-0.128,sales:76000,units:31,status:'risk'}
-  ],
-  shipments:[
-    {id:'sh1',tracking:'IT-2026-1042',customer:'Nova Retail Co.',origin:{label:'Mumbai, India',latitude:19.076,longitude:72.877},destination:{label:'Bengaluru, India',latitude:12.972,longitude:77.594},carrier:'InvenTrack Express',status:'in-transit',weight:184,value:284000,eta:'2026-09-19',createdAt:'2026-09-13T08:30:00Z',updatedAt:'2026-09-16T10:10:00Z',events:[{id:'she1',status:'delivered',title:'Shipment booked',detail:'Order confirmed and packed at the Mumbai fulfilment hub.',location:'Mumbai, India',date:'2026-09-13T08:30:00Z'},{id:'she2',status:'in-transit',title:'In transit',detail:'Carrier has collected the shipment and it is moving to Bengaluru.',location:'Pune, India',date:'2026-09-16T10:10:00Z'}]},
-    {id:'sh2',tracking:'IT-2026-1037',customer:'GreenLeaf Wholesale',origin:{label:'Kochi, India',latitude:9.931,longitude:76.267},destination:{label:'Dubai, UAE',latitude:25.205,longitude:55.271},carrier:'Skyline Cargo',status:'delivered',weight:92,value:176500,eta:'2026-09-15',createdAt:'2026-09-10T06:50:00Z',updatedAt:'2026-09-15T14:20:00Z',events:[{id:'she3',status:'delivered',title:'Delivered',detail:'Delivery confirmed by the receiving team.',location:'Dubai, UAE',date:'2026-09-15T14:20:00Z'},{id:'she4',status:'in-transit',title:'Customs cleared',detail:'Shipment cleared destination customs.',location:'Dubai, UAE',date:'2026-09-14T11:05:00Z'}]},
-    {id:'sh3',tracking:'IT-2026-1051',customer:'Metro Office Supplies',origin:{label:'Mumbai, India',latitude:19.076,longitude:72.877},destination:{label:'Delhi, India',latitude:28.614,longitude:77.209},carrier:'RapidRoute Logistics',status:'pending',weight:48,value:98500,eta:'2026-09-21',createdAt:'2026-09-16T09:15:00Z',updatedAt:'2026-09-16T09:15:00Z',events:[{id:'she5',status:'pending',title:'Ready for pickup',detail:'Shipment is packed and waiting for carrier collection.',location:'Mumbai, India',date:'2026-09-16T09:15:00Z'}]},
-    {id:'sh4',tracking:'IT-2026-1029',customer:'Northstar Retail',origin:{label:'Bengaluru, India',latitude:12.972,longitude:77.594},destination:{label:'Singapore',latitude:1.352,longitude:103.82},carrier:'OceanLink Freight',status:'delayed',weight:310,value:342000,eta:'2026-09-20',createdAt:'2026-09-08T07:40:00Z',updatedAt:'2026-09-16T18:40:00Z',events:[{id:'she6',status:'delayed',title:'Weather delay',detail:'Departure moved by 24 hours due to adverse weather.',location:'Chennai, India',date:'2026-09-16T18:40:00Z'},{id:'she7',status:'in-transit',title:'Departed origin hub',detail:'Shipment left the Bengaluru consolidation centre.',location:'Bengaluru, India',date:'2026-09-12T12:25:00Z'}]},
-    {id:'sh5',tracking:'IT-2026-1018',customer:'Atlas Trade Group',origin:{label:'Mumbai, India',latitude:19.076,longitude:72.877},destination:{label:'London, United Kingdom',latitude:51.507,longitude:-0.128},carrier:'GlobalParcel',status:'delivered',weight:126,value:219000,eta:'2026-09-12',createdAt:'2026-09-04T09:05:00Z',updatedAt:'2026-09-12T16:05:00Z',events:[{id:'she8',status:'delivered',title:'Delivered',detail:'Signed for by the receiving warehouse.',location:'London, United Kingdom',date:'2026-09-12T16:05:00Z'}]},
-    {id:'sh6',tracking:'IT-2026-1054',customer:'Harbour Retail Network',origin:{label:'Kochi, India',latitude:9.931,longitude:76.267},destination:{label:'Delhi, India',latitude:28.614,longitude:77.209},carrier:'InvenTrack Express',status:'in-transit',weight:76,value:126000,eta:'2026-09-22',createdAt:'2026-09-16T15:35:00Z',updatedAt:'2026-09-17T07:20:00Z',events:[{id:'she9',status:'in-transit',title:'Departed origin hub',detail:'Shipment is on the line-haul route to Delhi.',location:'Kochi, India',date:'2026-09-17T07:20:00Z'}]}
-  ]
-};
-
-let db = load();
+let db = {revision:0,suppliers:[],products:[],movements:[],regions:[],shipments:[],purchaseOrders:[]};
 let selectedRegionId='';
-let selectedShipmentId='sh1';
-let databaseReady=false, saveQueue=Promise.resolve(), releases=[];
-let authState={required:false,authenticated:false,user:null};
-const VISITOR_ID_KEY='inventrack_visitor_id_v1',VISITOR_FALLBACK_KEY='inventrack_visitor_metrics_v1';
-let visitorMetrics=(()=>{try{const saved=JSON.parse(localStorage.getItem(VISITOR_FALLBACK_KEY)||'{}');return {totalVisitors:Number(saved.totalVisitors)||0,todayVisitors:Number(saved.todayVisitors)||0,weekVisitors:Number(saved.weekVisitors)||0}}catch{return {totalVisitors:0,todayVisitors:0,weekVisitors:0}}})();
+let selectedShipmentId='';
+let databaseReady=false, writeBusy=false, saveQueue=Promise.resolve(), releases=[], teamUsers=[], confirmedInventory=structuredClone(db);
+let authState={required:true,authenticated:false,user:null};
+const VISITOR_ID_KEY='inventrack_visitor_id_v1';
+let visitorMetrics={totalVisitors:0,todayVisitors:0,weekVisitors:0},visitorMetricsReady=false;
 let distributionGlobe=null;
 function connection(message,state){const el=document.getElementById('connectionStatus');el.textContent=message;el.dataset.state=state;}
 const $ = id => document.getElementById(id);
 const uid = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
-function authCanWrite(){return !authState.required||(authState.authenticated&&['admin','wholesaler'].includes(authState.user?.role));}
+function authCanWrite(){return authState.authenticated&&['admin','wholesaler'].includes(authState.user?.role);}
 function renderAuthState(){
   const button=$('authButton');
   if(button){button.hidden=!authState.required;button.textContent=authState.authenticated?'Sign out':'Sign in';button.title=authState.authenticated?`Sign out ${authState.user.email}`:'Sign in to the organization workspace';}
   if(authState.authenticated&&authState.user?.role&&typeof roleDetails!=='undefined'){
     workspace.role=authState.user.role;persistWorkspace();
     if($('roleChip'))$('roleChip').textContent=`${roleDetails[authState.user.role].label} workspace`;
-  }
-  const writeControls=['importBtn','quickAddBtn','addProductBtn','addMovementBtn','addSupplierBtn','addShipmentBtn','advanceShipmentBtn','resetDataBtn','createPurchaseOrdersBtn'];
-  for(const id of writeControls){const el=$(id);if(el)el.hidden=authState.required&&(id==='resetDataBtn'||!authCanWrite());}
+  }else if($('roleChip'))$('roleChip').textContent='Sign in required';
+  const writeControls=['importBtn','quickAddBtn','addProductBtn','addMovementBtn','addSupplierBtn','addShipmentBtn','advanceShipmentBtn','createPurchaseOrdersBtn'];
+  for(const id of writeControls){const el=$(id);if(el)el.hidden=!authCanWrite();}
+  if($('userManagement'))$('userManagement').hidden=authState.user?.role!=='admin';
 }
 function openAuthDialog(message=''){
-  $('welcomeDialog')?.open&&$('welcomeDialog').close();
   const dialog=$('authDialog');if(!dialog)return;
   $('authError').textContent=message;
   if(!dialog.open)dialog.showModal();
@@ -91,71 +51,70 @@ async function submitLogin(event){
 }
 async function signOut(){
   try{await api('/api/auth/logout',{method:'POST',signal:AbortSignal.timeout(5000)});}catch{}
-  authState={required:true,authenticated:false,user:null};databaseReady=false;renderAuthState();connection('Sign in required','error');openAuthDialog('You have been signed out.');
+  clearSessionInventory();openAuthDialog('You have been signed out.');
 }
 
-function load(){
-  try{
-    const current=localStorage.getItem(STORE_KEY),saved=JSON.parse(current||localStorage.getItem(LEGACY_STORE_KEY));
-    if(saved?.products&&saved?.suppliers&&saved?.movements){if(!Array.isArray(saved.shipments))saved.shipments=structuredClone(seed.shipments);if(!current)localStorage.setItem(STORE_KEY,JSON.stringify(saved));return saved}
-  }catch{}
-  localStorage.setItem(STORE_KEY,JSON.stringify(seed));return structuredClone(seed);
-}
+function emptyInventory(){return {revision:0,suppliers:[],products:[],movements:[],regions:[],shipments:[],purchaseOrders:[]};}
+function clearSessionInventory(){authState={required:true,authenticated:false,user:null};databaseReady=false;db=emptyInventory();confirmedInventory=structuredClone(db);teamUsers=[];renderAll();renderEnhanced();renderAuthState();connection('Sign in required','error');}
 function save(){
   const snapshot=structuredClone(db);
-  localStorage.setItem(STORE_KEY,JSON.stringify(snapshot));renderAll();
+  writeBusy=true;
+  renderAll();
   connection('Saving changes…','pending');
   saveQueue=saveQueue.then(async()=>{
     if(!databaseReady)throw new Error('Database unavailable. Export your changes before reloading.');
     snapshot.revision=db.revision;
     const response=await api('/api/inventory',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(10000)});
     const result=await response.json();
-    if(response.status===401){authState={required:true,authenticated:false,user:null};renderAuthState();openAuthDialog('Your session has expired.');throw new Error('Authentication required.');}
+    if(response.status===401){clearSessionInventory();openAuthDialog('Your session has expired.');throw new Error('Authentication required.');}
     if(response.status===403)throw new Error(result.error||'Your account is read-only.');
     if(!response.ok)throw new Error(result.error||'Database update failed.');
-    const saved=result;db.revision=saved.revision;
-    db.movements=[...new Map([...db.movements,...saved.movements].map(movement=>[movement.id,movement])).values()];
-    db.purchaseOrders=saved.purchaseOrders;
-    localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');renderAll();
+    applyServerSnapshot(result);
     logActivity('Database save confirmed','Inventory changes were committed to SQLite.');renderLogbook();
-  }).catch(error=>{databaseReady=false;connection('Not saved · export & reload','error');toast(error.message);});
+    return true;
+  }).catch(error=>{databaseReady=false;db=structuredClone(confirmedInventory);renderAll();renderEnhanced();connection('Not saved · reload required','error');toast(`${error.message} Changes were not confirmed; reload before editing.`);return false;}).finally(()=>{writeBusy=false;});
   return saveQueue;
 }
-function applyServerSnapshot(snapshot){db=snapshot;databaseReady=true;localStorage.setItem(STORE_KEY,JSON.stringify(db));connection('Database synced','ready');renderAll();renderEnhanced()}
+function applyServerSnapshot(snapshot){db=snapshot;confirmedInventory=structuredClone(snapshot);databaseReady=true;connection('Database synced','ready');renderAll();renderEnhanced()}
 async function postServerOperation(path,payload){
   await saveQueue;
   if(!databaseReady)throw new Error('Connect to the database before recording this operation.');
+  if(writeBusy)throw new Error('Wait for the current operation to finish.');
+  writeBusy=true;
+  try{
   const response=await api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)}),result=await response.json();
-  if(response.status===401){authState={required:true,authenticated:false,user:null};renderAuthState();openAuthDialog('Your session has expired.');throw new Error('Authentication required.');}
+  if(response.status===401){clearSessionInventory();openAuthDialog('Your session has expired.');throw new Error('Authentication required.');}
   if(!response.ok)throw new Error(result.error||'Operation could not be saved.');
   applyServerSnapshot(result);return result;
+  }finally{writeBusy=false;}
 }
 async function loadFromServer(){
   try{
     await loadAuthSession();
-    if(authState.required&&!authState.authenticated){databaseReady=false;connection('Sign in required','error');openAuthDialog();return;}
+    if(authState.required&&!authState.authenticated){clearSessionInventory();openAuthDialog();return;}
     const response=await api('/api/inventory',{signal:AbortSignal.timeout(10000)});
-    if(response.status===401){authState={required:true,authenticated:false,user:null};renderAuthState();databaseReady=false;connection('Sign in required','error');openAuthDialog('Your session has expired.');return;}
+    if(response.status===401){clearSessionInventory();openAuthDialog('Your session has expired.');return;}
     if(!response.ok)throw new Error('Could not load inventory.');
     db=await response.json();
+    confirmedInventory=structuredClone(db);
     databaseReady=true;connection('Database connected','ready');
-    localStorage.setItem(STORE_KEY,JSON.stringify(db));
     renderAll();renderEnhanced();
     const releaseResponse=await api('/api/releases');
     if(releaseResponse.ok){releases=await releaseResponse.json();renderLogbook();}
-  }catch(error){databaseReady=false;const hostedDemo=location.hostname.endsWith('.chatgpt.site')||location.protocol==='file:';if(!authState.required){connection(hostedDemo?'Demo mode · seeded data':'Offline · cached data',hostedDemo?'demo':'error');}else{connection('Sign in required','error');openAuthDialog(error.message);}}
+    if(authState.user?.role==='admin')refreshTeamUsers().catch(error=>toast(error.message));
+  }catch(error){databaseReady=false;db=emptyInventory();renderAll();connection('Database unavailable','error');toast(error.message||'Could not connect to the database.');}
 }
-document.addEventListener('submit',event=>{if(!databaseReady && ['productForm','movementForm','supplierForm','shipmentForm'].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();toast('Connect the database before editing inventory.');}},true);
+document.addEventListener('submit',event=>{if((!databaseReady||writeBusy) && ['productForm','movementForm','supplierForm','shipmentForm'].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();toast(writeBusy?'Wait for the current save to finish.':'Connect the database before editing inventory.');}},true);
 document.addEventListener('click',event=>{
-  if(!databaseReady && event.target.closest('[data-delete-product],[data-delete-supplier],#resetDataBtn,#importBtn')){event.preventDefault();event.stopImmediatePropagation();toast('Connect the database before editing inventory.');}
+  const writeAction=event.target.closest('[data-delete-product],[data-delete-supplier],[data-advance-shipment],[data-receive-order],#advanceShipmentBtn,#createPurchaseOrdersBtn,#importBtn');
+  if(((!databaseReady||writeBusy)&&writeAction)||(writeBusy&&event.target.closest('#authButton,#connectionStatus'))){event.preventDefault();event.stopImmediatePropagation();toast(writeBusy?'Wait for the current save to finish.':'Connect the database before editing inventory.');}
 },true);
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2400)}
 function initials(name){return name.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase()}
 function productFor(id){return db.products.find(p=>p.id===id)}
 function statusFor(p){return p.quantity===0?['Out of stock','out']:p.quantity<=p.reorder?['Low stock','low']:['In stock','good']}
 function visitorId(){try{let id=localStorage.getItem(VISITOR_ID_KEY);if(!id){id=crypto.randomUUID?.()||`visitor_${uid('v')}`;localStorage.setItem(VISITOR_ID_KEY,id)}return id}catch{return `visitor_${uid('v')}`}}
-function localVisitorFallback(){const today=new Date().toISOString().slice(0,10);let saved={};try{saved=JSON.parse(localStorage.getItem(VISITOR_FALLBACK_KEY)||'{}')}catch{}if(saved.lastVisit!==today){saved.totalVisitors=(Number(saved.totalVisitors)||0)+1;saved.todayVisitors=1;saved.lastVisit=today}else saved.todayVisitors=Math.max(1,Number(saved.todayVisitors)||1);saved.weekVisitors=Math.max(Number(saved.weekVisitors)||0,saved.todayVisitors);localStorage.setItem(VISITOR_FALLBACK_KEY,JSON.stringify(saved));return {totalVisitors:saved.totalVisitors,todayVisitors:saved.todayVisitors,weekVisitors:saved.weekVisitors}}
-async function registerVisitor(){try{const response=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitorId:visitorId(),path:location.hash||'#dashboard'}),signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Visitor endpoint unavailable');visitorMetrics=await response.json()}catch{visitorMetrics=localVisitorFallback()}renderAnalytics()}
+async function registerVisitor(){try{const response=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visitorId:visitorId(),path:location.hash||'#dashboard'}),signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Visitor endpoint unavailable');visitorMetrics=await response.json();visitorMetricsReady=true;}catch{visitorMetricsReady=false;}renderAnalytics()}
 function parseCsv(text){
   const rows=[];let row=[],field='',quote=false;
   for(let i=0;i<text.length;i++){
@@ -169,7 +128,8 @@ function parseCsv(text){
   row.push(field);if(row.some(cell=>cell.trim()))rows.push(row);
   return rows;
 }
-function importProductsFromCsv(text){
+async function importProductsFromCsv(text){
+  if(!databaseReady||writeBusy)throw new Error('Wait for database synchronization before importing.');
   const rows=parseCsv(text),headers=rows.shift()?.map(h=>h.trim().toLowerCase())||[],required=['name','sku','category','quantity','reorder level','cost price','selling price'];
   const missing=required.filter(name=>!headers.includes(name));
   if(missing.length)throw new Error(`Missing columns: ${missing.join(', ')}`);
@@ -178,11 +138,10 @@ function importProductsFromCsv(text){
   if(!products.length)throw new Error('No product rows found.');
   db.products=products;
   db.movements=products.filter(p=>p.quantity>0).map(p=>({id:uid('m'),productId:p.id,type:'in',quantity:p.quantity,balance:p.quantity,reference:'CSV IMPORT',notes:'Imported opening stock',date:new Date().toISOString()}));
-  save();
-  toast(`Imported ${products.length} products.`);
+  if(await save())toast(`Imported ${products.length} products.`);
 }
 
-const viewMeta={dashboard:['Dashboard','A clear view of your inventory today.'],products:['Products','Manage your product catalogue and stock levels.'],reorder:['Reorder Plan','Prioritize purchases before stock runs out.'],movements:['Stock Movements','Track every addition, sale, and adjustment.'],suppliers:['Suppliers','Manage the businesses that supply your stock.'],logistics:['Shipping & tracking','Follow routes, delivery commitments, and shipment activity.'],analytics:['Admin insights','Company, supplier, and stock intelligence for better decisions.'],logbook:['Log book','A transparent timeline of everything that changed in your workspace.'],about:['About Project','An MCA academic project built with core web technologies.']};
+const viewMeta={dashboard:['Dashboard','A clear view of your inventory today.'],products:['Products','Manage your product catalogue and stock levels.'],reorder:['Reorder Plan','Prioritize purchases before stock runs out.'],movements:['Stock Movements','Track every addition, sale, and adjustment.'],suppliers:['Suppliers','Manage the businesses that supply your stock.'],logistics:['Shipping & tracking','Follow routes, delivery commitments, and shipment activity.'],analytics:['Admin insights','Company, supplier, and stock intelligence for better decisions.'],logbook:['Log book','Your database-backed stock movement history.'],about:['About InvenTrack','Inventory operations for distributors, wholesalers, and stock teams.']};
 function showView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`${name}View`));
   document.querySelectorAll('.nav-link').forEach(n=>n.classList.toggle('active',n.dataset.view===name));
@@ -194,31 +153,23 @@ function showView(name){
 
 function renderDashboard(){
   const units=db.products.reduce((n,p)=>n+p.quantity,0),low=db.products.filter(p=>p.quantity<=p.reorder),value=db.products.reduce((n,p)=>n+p.quantity*p.cost,0),margin=db.products.reduce((n,p)=>n+p.quantity*(p.price-p.cost),0),market=value+margin,cats=[...new Set(db.products.map(p=>p.category))];
+  $('onboardingPanel').hidden=Boolean(db.products.length||db.suppliers.length);
   $('metricProducts').textContent=db.products.length;$('metricCategories').textContent=`${cats.length} ${cats.length===1?'category':'categories'}`;$('metricUnits').textContent=units.toLocaleString('en-IN');$('metricLow').textContent=low.length;$('metricValue').textContent=rupees.format(value);$('metricMargin').textContent=rupees.format(margin);$('metricMarket').textContent=rupees.format(market);
   const healthy=db.products.length-low.length,reorderBudget=low.reduce((n,p)=>n+suggestedReorderQty(p)*p.cost,0),supplierCounts=db.suppliers.map(s=>[s.name,db.products.filter(p=>p.supplierId===s.id).length]).sort((a,b)=>b[1]-a[1]);
   $('stockHealth').textContent=db.products.length?`${Math.round(healthy/db.products.length*100)}%`:'0%';$('reorderBudget').textContent=rupees.format(reorderBudget);$('topSupplier').textContent=supplierCounts[0]?.[1]?supplierCounts[0][0]:'--';
   const totals=Object.entries(db.products.reduce((a,p)=>{a[p.category]=(a[p.category]||0)+p.quantity;return a},{})).sort((a,b)=>b[1]-a[1]);const max=Math.max(1,...totals.map(x=>x[1]));
   $('categoryChart').innerHTML=totals.length?totals.map(([cat,n])=>`<div class="bar-row"><label title="${escapeHtml(cat)}">${escapeHtml(cat)}</label><div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,n/max*100)}%"></div></div><strong>${n}</strong></div>`).join(''):'<div class="empty">Add products to see category stock.</div>';
-  $('lowStockList').innerHTML=low.length?low.slice(0,5).map(p=>`<div class="alert-item"><div><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(p.sku)} - Reorder at ${p.reorder}</small></div><strong class="stock-number">${p.quantity} left</strong></div>`).join(''):'<div class="empty">Everything is well stocked.</div>';
+  $('lowStockList').innerHTML=low.length?low.slice(0,5).map(p=>`<div class="alert-item"><div><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(p.sku)} - Reorder at ${p.reorder}</small></div><strong class="stock-number">${p.quantity} left</strong></div>`).join(''):`<div class="empty">${db.products.length?'Everything is well stocked.':'Add products to start tracking stock.'}</div>`;
   const recent=[...db.movements].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
   $('recentTable').innerHTML=recent.length?recent.map(m=>movementRow(m,false)).join(''):'<tr><td colspan="5" class="empty">No stock activity yet.</td></tr>';
   const ratio=market?Math.round(margin/market*100):0,lowRatio=db.products.length?Math.round(low.length/db.products.length*100):0;
   $('valueComparison').innerHTML=`<div class="value-figures"><div><span>Cost value</span><strong>${rupees.format(value)}</strong></div><div><span>Market value</span><strong>${rupees.format(market)}</strong></div></div><div class="comparison-track"><span style="width:${market?value/market*100:0}%"></span></div><p><b>${rupees.format(margin)}</b> potential gross profit · ${ratio}% value uplift</p>`;
-  $('stockPulse').innerHTML=`<div class="pulse-ring" style="--pulse:${100-lowRatio}%"><strong>${100-lowRatio}%</strong><span>ready</span></div><div class="pulse-copy"><strong>${db.products.length-low.length} healthy lines</strong><span>${low.length?`${low.length} product lines need attention.`:'All product lines are above their reorder level.'}</span><button class="text-btn" data-go="analytics">Open admin insights</button></div>`;
+  const readyPercent=db.products.length?100-lowRatio:0;
+  $('stockPulse').innerHTML=`<div class="pulse-ring" style="--pulse:${readyPercent}%"><strong>${readyPercent}%</strong><span>ready</span></div><div class="pulse-copy"><strong>${db.products.length-low.length} healthy lines</strong><span>${db.products.length?low.length?`${low.length} product lines need attention.`:'All product lines are above their reorder level.':'No products recorded yet.'}</span><button class="text-btn" data-go="analytics">Open admin insights</button></div>`;
 }
 
-const productVisualIndex={p1:0,p2:1,p3:2,p4:3,p5:4,p6:5};
-function productImageIndex(product){
-  if(productVisualIndex[product.id]!==undefined)return productVisualIndex[product.id];
-  const category=String(product.category||'').toLowerCase();
-  if(category.includes('elect'))return 0;
-  if(category.includes('furn'))return 3;
-  if(category.includes('pantry')||category.includes('food'))return 4;
-  return category.includes('station')?2:5;
-}
 function productVisual(product,compact=false){
-  const index=productImageIndex(product),asset=`p${index+1}`;
-  return `<span class="product-visual${compact?' compact':''}" role="img" aria-label="${escapeHtml(product.name)}"><img src="assets/products/${asset}.png" alt=""></span>`;
+  return `<span class="product-visual${compact?' compact':''}" aria-hidden="true">${escapeHtml(initials(product.name))}</span>`;
 }
 function renderProducts(){
   const search=$('productSearch').value.toLowerCase(),cat=$('categoryFilter').value,stock=$('stockFilter').value;
@@ -277,8 +228,7 @@ $('receiptForm').addEventListener('submit',async event=>{
 function movementRow(m,full=true){const p=productFor(m.productId),sign=m.type==='out'?'-':m.type==='in'?'+':'=';return `<tr>${full?`<td>${shortDate.format(new Date(m.date))}</td>`:''}<td><strong>${escapeHtml(p?.name||'Deleted product')}</strong></td><td><span class="badge ${m.type}">${m.type==='in'?'Stock in':m.type==='out'?'Stock out':'Adjustment'}</span></td><td class="${m.type==='out'?'qty-negative':'qty-positive'}">${sign}${m.quantity}</td>${full?`<td>${m.balance}</td>`:`<td>${shortDate.format(new Date(m.date))}</td>`}<td>${escapeHtml(m.reference||'--')}</td>${full?`<td>${escapeHtml(m.notes||'--')}</td>`:''}</tr>`}
 function renderMovements(){const rows=[...db.movements].sort((a,b)=>new Date(b.date)-new Date(a.date));$('movementsTable').innerHTML=rows.length?rows.map(m=>movementRow(m)).join(''):'<tr><td colspan="7" class="empty">No stock movements recorded.</td></tr>'}
 
-function supplierImageIndex(supplier,index){return supplier.id==='s1'?0:supplier.id==='s2'?1:supplier.id==='s3'?2:index%3}
-function supplierVisual(supplier,index){return `<span class="supplier-avatar" role="img" aria-label="${escapeHtml(supplier.contact||supplier.name)}"><img src="assets/suppliers/s${supplierImageIndex(supplier,index)+1}.png" alt=""></span>`}
+function supplierVisual(supplier){return `<span class="supplier-avatar" aria-hidden="true">${escapeHtml(initials(supplier.name))}</span>`}
 function supplierStats(supplier){
   const items=db.products.filter(p=>p.supplierId===supplier.id),inventory=items.reduce((n,p)=>n+p.quantity*p.cost,0),market=items.reduce((n,p)=>n+p.quantity*p.price,0),low=items.filter(p=>p.quantity<=p.reorder).length;
   const city=String(supplier.address||'').split(',')[0].trim().toLowerCase(),related=(db.shipments||[]).filter(shipment=>[shipment.customer,shipment.origin?.label,shipment.destination?.label].some(value=>String(value||'').toLowerCase().includes(city))).length;
@@ -291,7 +241,7 @@ function renderSuppliers(){
 }
 function renderAnalytics(){
   const products=db.products,market=products.reduce((n,p)=>n+p.quantity*p.price,0),cost=products.reduce((n,p)=>n+p.quantity*p.cost,0),margin=market-cost,low=products.filter(p=>p.quantity<=p.reorder).length;
-  $('analyticsSummary').innerHTML=[['Market value',rupees.format(market),'Estimated current selling value'],['Gross opportunity',rupees.format(margin),'Potential margin on available stock'],['Supply risk',`${low} lines`,'Products at or below reorder level'],['Suppliers',db.suppliers.length,'Active supplier and distributor records'],['Visitors',Number(visitorMetrics.totalVisitors||0).toLocaleString('en-IN'),`${Number(visitorMetrics.todayVisitors||0).toLocaleString('en-IN')} today · ${Number(visitorMetrics.weekVisitors||0).toLocaleString('en-IN')} this week`]].map(([label,value,detail])=>`<article><span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('');
+  $('analyticsSummary').innerHTML=[['Market value',rupees.format(market),'Estimated current selling value'],['Gross opportunity',rupees.format(margin),'Potential margin on available stock'],['Supply risk',`${low} lines`,'Products at or below reorder level'],['Suppliers',db.suppliers.length,'Active supplier and distributor records'],['Visitors',visitorMetricsReady?Number(visitorMetrics.totalVisitors||0).toLocaleString('en-IN'):'Unavailable',visitorMetricsReady?`${Number(visitorMetrics.todayVisitors||0).toLocaleString('en-IN')} today · ${Number(visitorMetrics.weekVisitors||0).toLocaleString('en-IN')} this week`:'Database visitor metrics not connected']].map(([label,value,detail])=>`<article><span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('');
   const byCategory=Object.entries(products.reduce((result,p)=>{result[p.category]=(result[p.category]||0)+p.quantity*p.price;return result},{})).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...byCategory.map(([,n])=>n));
   $('categoryValueChart').innerHTML=byCategory.length?byCategory.map(([category,total])=>`<div class="insight-row"><div><strong>${escapeHtml(category)}</strong><span>${rupees.format(total)}</span></div><i><b style="width:${total/max*100}%"></b></i></div>`).join(''):'<div class="empty">Add products to view category value.</div>';
   const stats=db.suppliers.map(s=>{const items=products.filter(p=>p.supplierId===s.id);return {name:s.name,items,units:items.reduce((n,p)=>n+p.quantity,0),cost:items.reduce((n,p)=>n+p.quantity*p.cost,0),market:items.reduce((n,p)=>n+p.quantity*p.price,0),low:items.filter(p=>p.quantity<=p.reorder).length}}).sort((a,b)=>b.market-a.market);
@@ -300,8 +250,18 @@ function renderAnalytics(){
   $('supplierPerformance').innerHTML=stats.length?stats.map(s=>`<tr><td><strong>${escapeHtml(s.name)}</strong></td><td>${s.items.length}</td><td>${s.units.toLocaleString('en-IN')}</td><td>${rupees.format(s.cost)}</td><td>${rupees.format(s.market)}</td><td><span class="badge ${s.low?'low':'good'}">${s.low||'Healthy'}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No supplier data yet.</td></tr>';
   renderDistributionNetwork();
 }
+function deliveryRegions(){
+  const destinations=new Map();
+  for(const shipment of (db.shipments||[])){
+    const place=shipment.destination;if(!place||!Number.isFinite(place.latitude)||!Number.isFinite(place.longitude))continue;
+    const id=`${place.label}|${place.latitude}|${place.longitude}`;
+    if(!destinations.has(id))destinations.set(id,{id,city:place.label,country:'',latitude:place.latitude,longitude:place.longitude,sales:0,units:0,status:'healthy'});
+    const region=destinations.get(id);region.sales+=shipment.value;region.units++;if(shipment.status==='delayed')region.status='risk';
+  }
+  return [...destinations.values()].sort((a,b)=>b.sales-a.sales);
+}
 function renderDistributionNetwork(){
-  const regions=db.regions||[],shipments=db.shipments||[];
+  const regions=deliveryRegions(),shipments=db.shipments||[];
   if(!distributionGlobe)distributionGlobe=new window.EarthGlobe($('globeStage'));
   const selected=regions.find(region=>region.id===selectedRegionId)||regions[0];
   selectedRegionId=selected?.id||'';
@@ -310,29 +270,23 @@ function renderDistributionNetwork(){
   const totalUnits=regions.reduce((sum,region)=>sum+region.units,0);
   const routeCount=shipments.filter(shipment=>shipment.status!=='delivered').length;
   $('distributionStats').innerHTML=[
-    ['Territory sales',rupees.format(totalSales),'Demo sales across all destinations'],
-    ['Units dispatched',totalUnits.toLocaleString('en-IN'),regions.length+' sales destinations'],
+    ['Declared shipment value',rupees.format(totalSales),'Across recorded delivery destinations'],
+    ['Shipments recorded',totalUnits.toLocaleString('en-IN'),regions.length+' delivery destinations'],
     ['Open shipments',routeCount,shipments.length+' shipment routes in total'],
-    ['Market coverage',new Set(regions.map(region=>region.country)).size,'Countries with recorded sales']
+    ['Destinations mapped',regions.length,'Locations with recorded coordinates']
   ].map(([label,value,detail])=>`<article><span>${label}</span><strong>${value}</strong><small>${detail}</small></article>`).join('');
   $('regionFeed').innerHTML=regions.length?regions.map(region=>{
-    const routes=shipments.filter(s=>s.destination?.label?.includes(region.city)||s.origin?.label?.includes(region.city)).length;
-    return `<button class="region-item ${region.id===selectedRegionId?'active':''}" type="button" aria-pressed="${region.id===selectedRegionId}" data-region-id="${escapeHtml(region.id)}"><div><strong>${escapeHtml(region.city)}</strong><small>${escapeHtml(region.country)} · ${region.units} units</small></div><b>${rupees.format(region.sales)}<small>${routes} route${routes===1?'':'s'}</small></b></button>`;
-  }).join(''):'<p class="empty">No sales destinations recorded.</p>';
+    return `<button class="region-item ${region.id===selectedRegionId?'active':''}" type="button" aria-pressed="${region.id===selectedRegionId}" data-region-id="${escapeHtml(region.id)}"><div><strong>${escapeHtml(region.city)}</strong><small>${region.units} shipment${region.units===1?'':'s'}</small></div><b>${rupees.format(region.sales)}<small>Declared value</small></b></button>`;
+  }).join(''):'<p class="empty">No delivery destinations recorded.</p>';
 }
 function selectDistributionRegion(id){
   selectedRegionId=id;
   renderDistributionNetwork();
-  distributionGlobe.focus((db.regions||[]).find(region=>region.id===id));
+  distributionGlobe.focus(deliveryRegions().find(region=>region.id===id));
 }
 const shipmentStatusMeta={pending:['Pending','pending'], 'in-transit':['In transit','in-transit'], delivered:['Delivered','delivered'], delayed:['Delayed','delayed']};
 function shipmentFor(id){return (db.shipments||[]).find(shipment=>shipment.id===id)}
 function shipmentStatus(status){return shipmentStatusMeta[status]||[status,'pending']}
-function shipmentCoordinates(label){
-  const value=String(label||'').toLowerCase();
-  const known=[['mumbai',{label:'Mumbai, India',latitude:19.076,longitude:72.877}],['bengaluru',{label:'Bengaluru, India',latitude:12.972,longitude:77.594}],['bangalore',{label:'Bengaluru, India',latitude:12.972,longitude:77.594}],['delhi',{label:'Delhi, India',latitude:28.614,longitude:77.209}],['kochi',{label:'Kochi, India',latitude:9.931,longitude:76.267}],['dubai',{label:'Dubai, UAE',latitude:25.205,longitude:55.271}],['singapore',{label:'Singapore',latitude:1.352,longitude:103.82}],['london',{label:'London, United Kingdom',latitude:51.507,longitude:-0.128}]];
-  return known.find(([name])=>value.includes(name))?.[1]||{label:String(label||'Unknown location'),latitude:20,longitude:78};
-}
 function renderShipmentMap(shipment){
   const map=$('shipmentMap');if(!map)return;
   if(!shipment){map.innerHTML='<div class="empty">Select a shipment to view its route.</div>';return}
@@ -349,8 +303,8 @@ function renderShipmentTracking(shipment){
   renderShipmentMap(shipment);
 }
 function renderShipmentHeatmap(shipments){
-  const today=new Date('2026-09-17T12:00:00Z'),days=Array.from({length:35},(_,i)=>{const date=new Date(today);date.setUTCDate(today.getUTCDate()-34+i);return date});
-  const cells=days.map(date=>{const key=date.toISOString().slice(0,10),count=shipments.reduce((total,shipment)=>total+(shipment.events||[]).filter(event=>event.date.slice(0,10)===key).length,0),fallback=(date.getUTCDate()*7+date.getUTCMonth())%4,level=count?Math.min(4,count):fallback===0?0:Math.min(3,fallback);return `<i class="heat-cell level-${level}" title="${count} shipment events on ${key}"></i>`}).join('');$('shipmentHeatmap').innerHTML=`<div class="heatmap-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="heatmap-cells">${cells}</div>`;
+  const today=new Date(),days=Array.from({length:35},(_,i)=>{const date=new Date(today);date.setUTCDate(today.getUTCDate()-34+i);return date});
+  const cells=days.map(date=>{const key=date.toISOString().slice(0,10),count=shipments.reduce((total,shipment)=>total+(shipment.events||[]).filter(event=>event.date.slice(0,10)===key).length,0),level=Math.min(4,count);return `<i class="heat-cell level-${level}" title="${count} shipment events on ${key}"></i>`}).join('');$('shipmentHeatmap').innerHTML=`<div class="heatmap-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="heatmap-cells">${cells}</div>`;
 }
 function renderLogistics(){
   const shipments=Array.isArray(db.shipments)?db.shipments:[],query=($('shipmentSearch')?.value||'').trim().toLowerCase(),filter=$('shipmentStatusFilter')?.value||'';
@@ -362,12 +316,38 @@ function renderLogistics(){
   $('shipmentsTable').innerHTML=filtered.length?filtered.map(shipment=>{const status=shipmentStatus(shipment.status),eta=new Date(`${shipment.eta}T00:00:00`),advance=shipment.status==='delivered'?'<span class="table-check">✓</span>':authCanWrite()?`<button class="action-btn" data-advance-shipment="${shipment.id}" title="Advance shipment status">Update</button>`:'<span class="readonly">Read only</span>';return `<tr class="shipment-row ${shipment.id===selected?.id?'selected':''}" data-select-shipment="${shipment.id}"><td><strong>${escapeHtml(shipment.tracking)}</strong><small class="table-subtext">${shipment.weight.toLocaleString('en-IN')} kg</small></td><td>${escapeHtml(shipment.customer)}</td><td><span class="route-cell">${escapeHtml(shipment.origin.label)} <b>→</b> ${escapeHtml(shipment.destination.label)}</span></td><td>${escapeHtml(shipment.carrier)}</td><td>${shortDate.format(eta)}</td><td>${rupees.format(shipment.value)}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td>${advance}</td></tr>`}).join(''):'<tr><td colspan="8" class="empty">No shipments match these filters.</td></tr>';
 }
 function openShipment(){
-  $('shipmentForm').reset();$('shipmentError').textContent='';$('shipmentOrigin').value='Mumbai, India';const eta=new Date();eta.setDate(eta.getDate()+5);$('shipmentEta').value=eta.toISOString().slice(0,10);$('shipmentDialog').showModal();
+  $('shipmentForm').reset();$('shipmentError').textContent='';const eta=new Date();eta.setDate(eta.getDate()+5);$('shipmentEta').value=eta.toISOString().slice(0,10);$('shipmentDialog').showModal();
 }
-function advanceShipment(id){
-  const shipment=shipmentFor(id);if(!shipment||shipment.status==='delivered')return;const next=shipment.status==='pending'||shipment.status==='delayed'?'in-transit':'delivered',label=next==='delivered'?'Delivered':'In transit',location=next==='delivered'?shipment.destination.label:shipment.origin.label;shipment.status=next;shipment.updatedAt=new Date().toISOString();shipment.events=shipment.events||[];shipment.events.unshift({id:uid('she'),status:next,title:label,detail:next==='delivered'?'Delivery confirmed by the receiving team.':'Carrier has accepted the shipment and it is moving to its destination.',location,date:shipment.updatedAt});selectedShipmentId=shipment.id;save();toast(`${shipment.tracking} marked ${label.toLowerCase()}.`);
+async function advanceShipment(id){
+  if(writeBusy||!databaseReady)return;
+  const shipment=shipmentFor(id);if(!shipment||shipment.status==='delivered')return;const next=shipment.status==='pending'||shipment.status==='delayed'?'in-transit':'delivered',label=next==='delivered'?'Delivered':'In transit',location=next==='delivered'?shipment.destination.label:shipment.origin.label;shipment.status=next;shipment.updatedAt=new Date().toISOString();shipment.events=shipment.events||[];shipment.events.unshift({id:uid('she'),status:next,title:label,detail:next==='delivered'?'Delivery confirmed by the receiving team.':'Carrier has accepted the shipment and it is moving to its destination.',location,date:shipment.updatedAt});selectedShipmentId=shipment.id;if(await save())toast(`${shipment.tracking} marked ${label.toLowerCase()}.`);
 }
-function renderAll(){renderDashboard();renderProducts();renderReorderPlan();renderMovements();renderSuppliers();renderLogistics();renderAnalytics();fillSelects()}
+function renderAll(){renderDashboard();renderProducts();renderReorderPlan();renderMovements();renderSuppliers();renderLogistics();renderAnalytics();renderTeamUsers();fillSelects()}
+function renderTeamUsers(){
+  const list=$('usersList');if(!list)return;
+  list.innerHTML=teamUsers.length?teamUsers.map(user=>`<div class="user-row"><div><strong>${escapeHtml(user.email)}</strong><small>${escapeHtml(user.role)} · ${user.active?'Active':'Disabled'}</small></div>${user.active&&user.id!==authState.user?.id?`<button class="action-btn" data-disable-user="${escapeHtml(user.id)}">Disable</button>`:''}</div>`).join(''):'<p class="empty">No accounts loaded.</p>';
+}
+async function refreshTeamUsers(){
+  const response=await api('/api/users',{signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw new Error('Could not load team accounts.');
+  teamUsers=await response.json();renderTeamUsers();
+}
+$('addUserBtn').addEventListener('click',()=>{$('userForm').reset();$('userError').textContent='';$('userDialog').showModal();});
+$('userForm').addEventListener('submit',async event=>{
+  event.preventDefault();const button=$('userSubmit');button.disabled=true;$('userError').textContent='';
+  try{
+    const response=await api('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('userEmail').value.trim(),password:$('userPassword').value,role:$('userRole').value}),signal:AbortSignal.timeout(15000)});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||'Account could not be created.');
+    teamUsers=result;renderTeamUsers();$('userPassword').value='';$('userDialog').close();toast('Team account created.');
+  }catch(error){$('userError').textContent=error.message||'Account could not be created.';}finally{button.disabled=false;}
+});
+document.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-disable-user]');if(!button)return;
+  const user=teamUsers.find(item=>item.id===button.dataset.disableUser);if(!user||!confirm(`Disable ${user.email}? Their active sessions will end.`))return;
+  button.disabled=true;
+  try{const response=await api(`/api/users/${encodeURIComponent(user.id)}/disable`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const result=await response.json();if(!response.ok)throw new Error(result.error||'Account could not be disabled.');teamUsers=result;renderTeamUsers();toast('Account disabled.');}
+  catch(error){toast(error.message||'Account could not be disabled.');button.disabled=false;}
+});
 function fillSelects(){
   const supplierValue=$('productSupplier').value;$('productSupplier').innerHTML='<option value="">No supplier</option>'+db.suppliers.map(s=>`<option value="${s.id}" ${s.id===supplierValue?'selected':''}>${escapeHtml(s.name)}</option>`).join('');
   const productValue=$('movementProduct').value;$('movementProduct').innerHTML='<option value="">Select a product</option>'+db.products.map(p=>`<option value="${p.id}" ${p.id===productValue?'selected':''}>${escapeHtml(p.name)} (${p.quantity} units)</option>`).join('');
@@ -382,23 +362,32 @@ function openMovement(productId=''){$('movementForm').reset();$('movementError')
 function productByCode(value){const code=String(value||'').trim().toLowerCase();return code?db.products.find(item=>(item.barcode||'').toLowerCase()===code||item.sku.toLowerCase()===code):null}
 $('movementLookup').addEventListener('input',event=>{const product=productByCode(event.target.value);if(product){$('movementProduct').value=product.id;$('movementError').textContent='';}});
 $('movementLookup').addEventListener('change',event=>{if(event.target.value.trim()&&!productByCode(event.target.value))$('movementError').textContent='No product matches that SKU or barcode.';});
-let scannerStream=null,scannerMode=null,scannerRunning=false;
+let scannerStream=null,scannerMode=null,scannerRunning=false,scannerControls=null,scannerGeneration=0;
 async function startBarcodeScanner(mode){
-  scannerMode=mode;$('barcodeStatus').textContent='';$('barcodeDialog').showModal();
-  if(!('BarcodeDetector' in window)){ $('barcodeStatus').textContent='Barcode detection is not supported in this browser. Enter the barcode manually, or use a browser with BarcodeDetector support.';return; }
+  stopBarcodeScanner();const generation=++scannerGeneration;
+  scannerMode=mode;$('barcodeStatus').textContent='Requesting camera access…';$('barcodeDialog').showModal();
   try{
     if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access is unavailable. Use HTTPS or localhost and enter the code manually.');
     const formats=['code_128','ean_13','ean_8','upc_a','upc_e','qr_code','data_matrix','itf'];
-    let detector;try{const supported=await BarcodeDetector.getSupportedFormats();detector=new BarcodeDetector({formats:formats.filter(format=>supported.includes(format))});}catch{detector=new BarcodeDetector();}
-    scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    if(!$('barcodeDialog').open){stopBarcodeScanner();return;}
+    let detector=null;
+    if('BarcodeDetector' in window){try{const supported=await BarcodeDetector.getSupportedFormats(),available=formats.filter(format=>supported.includes(format));if(available.length)detector=new BarcodeDetector({formats:available});}catch{}}
+    if(!detector&&!window.ZXingBrowser?.BrowserMultiFormatReader)throw new Error('Barcode decoder could not load. Reload the app or enter the code manually.');
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    if(generation!==scannerGeneration||!$('barcodeDialog').open){stream.getTracks().forEach(track=>track.stop());return;}
+    scannerStream=stream;
     const video=$('barcodeVideo');video.srcObject=scannerStream;await video.play();
-    if(!$('barcodeDialog').open){stopBarcodeScanner();return;}
+    if(generation!==scannerGeneration||!$('barcodeDialog').open){stream.getTracks().forEach(track=>track.stop());return;}
     scannerRunning=true;$('barcodeStatus').textContent='Point the camera at a product barcode.';
-    const scan=async()=>{if(!scannerRunning)return;try{const codes=await detector.detect(video);if(codes.length&&handleScannedCode(codes[0].rawValue))return;}catch{}setTimeout(scan,180);};scan();
-  }catch(error){$('barcodeStatus').textContent=error.message||'Camera could not be started. Enter the code manually.';stopBarcodeScanner();}
+    if(detector){
+      const scan=async()=>{if(!scannerRunning||generation!==scannerGeneration)return;try{const codes=await detector.detect(video);if(generation!==scannerGeneration)return;if(codes.length&&handleScannedCode(codes[0].rawValue))return;}catch{}if(scannerRunning&&generation===scannerGeneration)setTimeout(scan,180);};scan();
+    }else{
+      const reader=new window.ZXingBrowser.BrowserMultiFormatReader();
+      const controls=await reader.decodeFromStream(stream,video,(result,error,control)=>{if(generation!==scannerGeneration||!scannerRunning){control.stop();return;}if(result&&handleScannedCode(result.getText()))control.stop();});
+      if(generation!==scannerGeneration||!scannerRunning){controls.stop();return;}scannerControls=controls;
+    }
+  }catch(error){if(generation!==scannerGeneration)return;$('barcodeStatus').textContent=`${error.message||'Camera could not be started.'} Enter the code manually if camera scanning is unavailable.`;stopBarcodeScanner();}
 }
-function stopBarcodeScanner(){scannerRunning=false;if(scannerStream){scannerStream.getTracks().forEach(track=>track.stop());scannerStream=null;}$('barcodeVideo').srcObject=null;}
+function stopBarcodeScanner(){scannerGeneration++;scannerRunning=false;const controls=scannerControls;scannerControls=null;try{controls?.stop();}catch{}if(scannerStream){scannerStream.getTracks().forEach(track=>track.stop());scannerStream=null;}$('barcodeVideo').srcObject=null;}
 function handleScannedCode(value){
   const code=String(value||'').trim();if(!code)return false;
   if(scannerMode?.type==='field'){$(scannerMode.id).value=code;stopBarcodeScanner();$('barcodeDialog').close();$(scannerMode.id).focus();return true;}
@@ -409,12 +398,22 @@ function handleScannedCode(value){
 $('barcodeDialog').addEventListener('close',stopBarcodeScanner);
 function openSupplier(id=''){const s=db.suppliers.find(x=>x.id===id);$('supplierForm').reset();$('supplierId').value=id;$('supplierDialogTitle').textContent=s?'Edit supplier':'Add supplier';if(s){$('supplierName').value=s.name;$('supplierContact').value=s.contact;$('supplierPhone').value=s.phone;$('supplierEmail').value=s.email;$('supplierAddress').value=s.address}$('supplierDialog').showModal()}
 
-$('productForm').addEventListener('submit',e=>{e.preventDefault();const id=$('productId').value,sku=$('productSku').value.trim(),barcode=$('productBarcode').value.trim();if(db.products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&p.id!==id)){toast('That SKU is already in use.');return}if(barcode&&db.products.some(p=>(p.barcode||'').toLowerCase()===barcode.toLowerCase()&&p.id!==id)){toast('That barcode is already assigned.');return}const old=productFor(id),product={id:id||uid('p'),name:$('productName').value.trim(),sku,barcode,category:$('productCategory').value.trim(),quantity:old?.quantity??Number($('productQuantity').value),reorder:Number($('productReorder').value),cost:Number($('productCost').value),price:Number($('productPrice').value),supplierId:$('productSupplier').value};if(old)Object.assign(old,product);else{db.products.unshift(product);if(product.quantity>0)db.movements.unshift({id:uid('m'),productId:product.id,type:'in',quantity:product.quantity,balance:product.quantity,reference:'OPENING',notes:'Opening stock',date:new Date().toISOString()})}save();$('productDialog').close();toast(old?'Product updated.':'Product added.')});
+$('productForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('productId').value,sku=$('productSku').value.trim(),barcode=$('productBarcode').value.trim();if(db.products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&p.id!==id)){toast('That SKU is already in use.');return}if(barcode&&db.products.some(p=>(p.barcode||'').toLowerCase()===barcode.toLowerCase()&&p.id!==id)){toast('That barcode is already assigned.');return}const old=productFor(id),product={id:id||uid('p'),name:$('productName').value.trim(),sku,barcode,category:$('productCategory').value.trim(),quantity:old?.quantity??Number($('productQuantity').value),reorder:Number($('productReorder').value),cost:Number($('productCost').value),price:Number($('productPrice').value),supplierId:$('productSupplier').value};if(old)Object.assign(old,product);else{db.products.unshift(product);if(product.quantity>0)db.movements.unshift({id:uid('m'),productId:product.id,type:'in',quantity:product.quantity,balance:product.quantity,reference:'OPENING',notes:'Opening stock',date:new Date().toISOString()})}if(await save()){$('productDialog').close();toast(old?'Product updated.':'Product added.')}});
 $('movementForm').addEventListener('submit',async e=>{e.preventDefault();const productId=$('movementProduct').value,type=$('movementType').value,quantity=Number($('movementQuantity').value),button=$('movementForm').querySelector('[type="submit"]')||$('movementForm').querySelector('.btn.primary');$('movementError').textContent='';button.disabled=true;try{await postServerOperation('/api/stock-movements',{productId,type,quantity,reference:$('movementReference').value.trim(),notes:$('movementNotes').value.trim()});$('movementDialog').close();toast('Stock movement recorded.')}catch(error){$('movementError').textContent=error.message||'Stock movement could not be saved.';}finally{button.disabled=false;}});
-$('supplierForm').addEventListener('submit',e=>{e.preventDefault();const id=$('supplierId').value,old=db.suppliers.find(s=>s.id===id),supplier={id:id||uid('s'),name:$('supplierName').value.trim(),contact:$('supplierContact').value.trim(),phone:$('supplierPhone').value.trim(),email:$('supplierEmail').value.trim(),address:$('supplierAddress').value.trim()};if(old)Object.assign(old,supplier);else db.suppliers.push(supplier);save();$('supplierDialog').close();toast(old?'Supplier updated.':'Supplier added.')});
- $('shipmentForm').addEventListener('submit',e=>{e.preventDefault();const customer=$('shipmentCustomer').value.trim(),carrier=$('shipmentCarrier').value.trim(),originLabel=$('shipmentOrigin').value.trim(),destinationLabel=$('shipmentDestination').value.trim(),origin=shipmentCoordinates(originLabel),destination=shipmentCoordinates(destinationLabel);if(!customer||!carrier||!originLabel||!destinationLabel||!$('shipmentEta').value){$('shipmentError').textContent='Customer, route, carrier, and ETA are required.';return}let tracking;do{tracking=`IT-${new Date().getFullYear()}-${Math.floor(1000+Math.random()*9000)}`}while((db.shipments||[]).some(shipment=>shipment.tracking===tracking));const now=new Date().toISOString(),shipment={id:uid('sh'),tracking,customer,origin,destination,carrier,status:$('shipmentStatus').value,weight:Number($('shipmentWeight').value),value:Number($('shipmentValue').value),eta:$('shipmentEta').value,createdAt:now,updatedAt:now,events:[{id:uid('she'),status:$('shipmentStatus').value,title:$('shipmentStatus').value==='pending'?'Ready for pickup':'Shipment booked',detail:'Shipment record created in the InvenTrack logistics center.',location:origin.label,date:now}]};if(!Number.isFinite(shipment.weight)||shipment.weight<0||!Number.isFinite(shipment.value)||shipment.value<0){$('shipmentError').textContent='Weight and value must be zero or greater.';return}(db.shipments||(db.shipments=[])).unshift(shipment);selectedShipmentId=shipment.id;save();$('shipmentDialog').close();showView('logistics');toast(`${tracking} created.`)});
+$('supplierForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('supplierId').value,old=db.suppliers.find(s=>s.id===id),supplier={id:id||uid('s'),name:$('supplierName').value.trim(),contact:$('supplierContact').value.trim(),phone:$('supplierPhone').value.trim(),email:$('supplierEmail').value.trim(),address:$('supplierAddress').value.trim()};if(old)Object.assign(old,supplier);else db.suppliers.push(supplier);if(await save()){$('supplierDialog').close();toast(old?'Supplier updated.':'Supplier added.')}});
+ $('shipmentForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const customer=$('shipmentCustomer').value.trim(),carrier=$('shipmentCarrier').value.trim();
+  const origin={label:$('shipmentOrigin').value.trim(),latitude:Number($('shipmentOriginLatitude').value),longitude:Number($('shipmentOriginLongitude').value)};
+  const destination={label:$('shipmentDestination').value.trim(),latitude:Number($('shipmentDestinationLatitude').value),longitude:Number($('shipmentDestinationLongitude').value)};
+  if(!customer||!carrier||!origin.label||!destination.label||!$('shipmentEta').value||!Number.isFinite(origin.latitude)||!Number.isFinite(origin.longitude)||!Number.isFinite(destination.latitude)||!Number.isFinite(destination.longitude)||Math.abs(origin.latitude)>90||Math.abs(destination.latitude)>90||Math.abs(origin.longitude)>180||Math.abs(destination.longitude)>180){$('shipmentError').textContent='Enter a customer, carrier, route, valid coordinates, and ETA.';return}
+  let tracking;do{tracking=`IT-${new Date().getFullYear()}-${Math.floor(1000+Math.random()*9000)}`}while((db.shipments||[]).some(shipment=>shipment.tracking===tracking));
+  const now=new Date().toISOString(),shipment={id:uid('sh'),tracking,customer,origin,destination,carrier,status:$('shipmentStatus').value,weight:Number($('shipmentWeight').value),value:Number($('shipmentValue').value),eta:$('shipmentEta').value,createdAt:now,updatedAt:now,events:[{id:uid('she'),status:$('shipmentStatus').value,title:$('shipmentStatus').value==='pending'?'Ready for pickup':'Shipment booked',detail:'Shipment record created in InvenTrack.',location:origin.label,date:now}]};
+  if(!Number.isFinite(shipment.weight)||shipment.weight<0||!Number.isFinite(shipment.value)||shipment.value<0){$('shipmentError').textContent='Weight and value must be zero or greater.';return}
+  (db.shipments||(db.shipments=[])).unshift(shipment);selectedShipmentId=shipment.id;if(await save()){$('shipmentDialog').close();showView('logistics');toast(`${tracking} created.`);}
+ });
 
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
   const close=e.target.closest('[data-close-dialog]');if(close)close.closest('dialog').close();
   const scanBarcode=e.target.closest('[data-scan-barcode]'),scanProduct=e.target.closest('[data-scan-product]'),receiveOrder=e.target.closest('[data-receive-order]');
   if(scanBarcode)startBarcodeScanner({type:'field',id:scanBarcode.dataset.scanBarcode});
@@ -423,8 +422,8 @@ document.addEventListener('click',e=>{
   const nav=e.target.closest('[data-view]'),go=e.target.closest('[data-go]');if(nav)showView(nav.dataset.view);if(go)showView(go.dataset.go);
   const editP=e.target.closest('[data-edit-product]'),moveP=e.target.closest('[data-move-product]'),deleteP=e.target.closest('[data-delete-product]'),editS=e.target.closest('[data-edit-supplier]'),deleteS=e.target.closest('[data-delete-supplier]'),selectShipment=e.target.closest('[data-select-shipment]'),advance=e.target.closest('[data-advance-shipment]');
   if(editP)openProduct(editP.dataset.editProduct);if(moveP)openMovement(moveP.dataset.moveProduct);
-  if(deleteP){const id=deleteP.dataset.deleteProduct,p=productFor(id);if(confirm(`Delete ${p.name}? Its movement history will remain.`)){db.products=db.products.filter(x=>x.id!==id);save();toast('Product deleted.')}}
-  if(editS)openSupplier(editS.dataset.editSupplier);if(deleteS){const id=deleteS.dataset.deleteSupplier,s=db.suppliers.find(x=>x.id===id);if(confirm(`Delete supplier ${s.name}?`)){db.suppliers=db.suppliers.filter(x=>x.id!==id);db.products.forEach(p=>{if(p.supplierId===id)p.supplierId=''});save();toast('Supplier deleted.')}}
+  if(deleteP){const id=deleteP.dataset.deleteProduct,p=productFor(id);if(confirm(`Delete ${p.name}? Its movement history will remain.`)){db.products=db.products.filter(x=>x.id!==id);if(await save())toast('Product deleted.')}}
+  if(editS)openSupplier(editS.dataset.editSupplier);if(deleteS){const id=deleteS.dataset.deleteSupplier,s=db.suppliers.find(x=>x.id===id);if(confirm(`Delete supplier ${s.name}?`)){db.suppliers=db.suppliers.filter(x=>x.id!==id);db.products.forEach(p=>{if(p.supplierId===id)p.supplierId=''});if(await save())toast('Supplier deleted.')}}
   if(selectShipment){selectedShipmentId=selectShipment.dataset.selectShipment;renderLogistics()}
   if(advance){advanceShipment(advance.dataset.advanceShipment)}
 });
@@ -432,10 +431,13 @@ $('quickAddBtn').onclick=$('addProductBtn').onclick=()=>openProduct();$('addMove
 $('createPurchaseOrdersBtn').onclick=createPurchaseOrders;
 $('dashboardDate').textContent=new Intl.DateTimeFormat('en-IN',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
 $('dashboardSearchForm').addEventListener('submit',event=>{event.preventDefault();const query=$('dashboardSearch').value.trim();$('productSearch').value=query;showView('products');renderProducts();if(query)toast(`Showing products matching “${query}”.`)});
-$('resetDataBtn').onclick=async()=>{if(!confirm('Reset all records to the original demo data?'))return;try{await postServerOperation('/api/demo-reset',{});toast('Demo data restored.')}catch(error){toast(error.message||'Demo data could not be restored.')}};
-$('exportBtn').onclick=()=>{const headers=['Name','SKU','Barcode','Category','Quantity','Reorder Level','Cost Price','Selling Price','Inventory Value','Gross Margin','Supplier','Status'];const rows=db.products.map(p=>[p.name,p.sku,p.barcode||'',p.category,p.quantity,p.reorder,p.cost,p.price,p.quantity*p.cost,p.quantity*(p.price-p.cost),db.suppliers.find(s=>s.id===p.supplierId)?.name||'',statusFor(p)[0]]);const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`inventrack-inventory-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);toast('Inventory exported.')};
+$('exportBtn').onclick=()=>{
+  if(!authState.authenticated||!databaseReady){toast('Sign in and load the database before exporting.');return;}
+  const link=document.createElement('a');link.href=`${API_BASE}/api/inventory.csv`;link.download=`inventrack-inventory-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link);link.click();link.remove();toast('CSV download requested.');
+};
 $('importBtn').onclick=()=>$('importFile').click();
-$('importFile').onchange=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{importProductsFromCsv(reader.result)}catch(error){toast(error.message)}finally{e.target.value=''}};reader.readAsText(file)};
+$('importFile').onchange=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=async()=>{try{await importProductsFromCsv(reader.result)}catch(error){toast(error.message)}finally{e.target.value=''}};reader.readAsText(file)};
 window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(viewMeta[v])showView(v)});
 
 /* Workspace enhancements are kept beside the original inventory model so existing
@@ -449,13 +451,9 @@ const roleDetails={
 let workspace=(()=>{try{return JSON.parse(localStorage.getItem(WORKSPACE_KEY))||{}}catch(error){return {}}})();
 workspace.role=roleDetails[workspace.role]?workspace.role:'';
 workspace.theme=workspace.theme==='dark'?'dark':'light';
-workspace.activity=Array.isArray(workspace.activity)?workspace.activity:[];
+delete workspace.activity;
 function persistWorkspace(){localStorage.setItem(WORKSPACE_KEY,JSON.stringify(workspace))}
-function logActivity(action,detail=''){
-  workspace.activity.unshift({id:uid('a'),action,detail,date:new Date().toISOString(),role:workspace.role||'admin'});
-  workspace.activity=workspace.activity.slice(0,100);
-  persistWorkspace();
-}
+function logActivity(){}
 const baseSave=save;
 save=function(){
   const pending=baseSave();
@@ -465,22 +463,14 @@ save=function(){
 };
 function renderLogbook(){
   $('releaseLog').innerHTML=releases.length?releases.map(item=>`<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item.action)}</strong><p>${escapeHtml(item.detail)}</p><small>${shortDate.format(new Date(item.date))} · Product release</small></div></div>`).join(''):'<p>Connect to the database to load product updates.</p>';
-  const items=workspace.activity;
-  $('logbookSummary').textContent=`${items.length} ${items.length===1?'event':'events'} recorded in this workspace`;
-  $('activityList').innerHTML=items.length?items.map(item=>`<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(item.action)}</strong><p>${escapeHtml(item.detail)}</p><small>${shortDate.format(new Date(item.date))} · ${escapeHtml(roleDetails[item.role]?.label||'Administrator')}</small></div></div>`).join(''):'<div class="empty">No activity has been recorded yet.</div>';
+  const items=[...db.movements].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  $('logbookSummary').textContent=`${items.length} stock ${items.length===1?'movement':'movements'} recorded in the database`;
+  $('activityList').innerHTML=items.length?items.map(item=>`<div class="activity-item"><span class="activity-dot"></span><div><strong>${escapeHtml(productFor(item.productId)?.name||'Deleted product')} · ${escapeHtml(item.type)}</strong><p>${item.quantity} units · balance ${item.balance} · ${escapeHtml(item.reference||'No reference')}</p><small>${shortDate.format(new Date(item.date))}</small></div></div>`).join(''):'<div class="empty">No stock movements have been recorded yet.</div>';
 }
 function applyTheme(){
   document.documentElement.dataset.theme=workspace.theme;
   $('themeToggle').textContent=workspace.theme==='dark'?'☀':'☾';
   $('themeToggle').title=workspace.theme==='dark'?'Switch to light mode':'Switch to dark mode';
-}
-function setRole(role){
-  if(authState.required&&authState.authenticated&&role!==authState.user.role){toast(`Your account is assigned to the ${roleDetails[authState.user.role].label} role.`);return;}
-  workspace.role=roleDetails[role]?role:'admin';persistWorkspace();
-  $('roleChip').textContent=`${roleDetails[workspace.role].label} workspace`;
-  $('welcomeDialog').close();
-  logActivity('Workspace role selected',roleDetails[workspace.role].description);
-  toast(`${roleDetails[workspace.role].label} workspace ready.`);
 }
 function notifications(){
   return db.products.filter(p=>p.quantity<=p.reorder).map(p=>({id:p.id,title:`${p.name} needs attention`,detail:p.quantity===0?'Out of stock':`${p.quantity} units left; reorder at ${p.reorder}.`}));
@@ -501,19 +491,15 @@ function ensureNotificationPanel(){
 }
 function renderEnhanced(){
   renderLogbook();renderNotifications();
-  $('roleChip').textContent=`${roleDetails[workspace.role||'admin'].label} workspace`;
+  $('roleChip').textContent=authState.authenticated?`${roleDetails[workspace.role||'admin'].label} workspace`:'Sign in required';
   applyTheme();
   renderAuthState();
 }
 document.addEventListener('click',event=>{
-  const role=event.target.closest('[data-role]');
-  if(role)setRole(role.dataset.role);
-  if(event.target.closest('#skipWelcomeBtn'))setRole('admin');
-  if(event.target.closest('#roleChip'))$('welcomeDialog').showModal();
+  if(event.target.closest('#roleChip'))toast(authState.authenticated?`${authState.user.email} · ${authState.user.role}`:'Sign in to see your account role.');
   if(event.target.closest('#themeToggle')){workspace.theme=workspace.theme==='dark'?'light':'dark';persistWorkspace();applyTheme();}
   if(event.target.closest('#notificationBtn')){$('notificationPanel')?.classList.toggle('open');}
   else if(!event.target.closest('#notificationPanel')){$('notificationPanel')?.classList.remove('open');}
-  if(event.target.closest('#clearLogBtn')){workspace.activity=[];persistWorkspace();renderLogbook();toast('Activity log cleared.');}
   const nav=event.target.closest('[data-view]');if(nav&&nav.dataset.view==='logbook')renderLogbook();
 });
 $('authForm').addEventListener('submit',submitLogin);
@@ -522,7 +508,6 @@ renderAll();
 ensureNotificationPanel();
 renderEnhanced();
 showView(viewMeta[location.hash.slice(1)]?location.hash.slice(1):'dashboard');
-if(!workspace.role)$('welcomeDialog').showModal();
 loadFromServer();
 registerVisitor();
 $('connectionStatus').onclick=()=>{if(confirm('Reload the latest database records? Export CSV first if you have unsaved changes.'))loadFromServer();};

@@ -40,9 +40,9 @@
       this.showRoutes = true;
       this.abort = new AbortController();
       stage.innerHTML = `<div class="earth-toolbar"><span class="earth-heading">Global distribution</span><div class="earth-layers"><button type="button" data-earth="countries" aria-pressed="true">Countries</button><button type="button" data-earth="routes" aria-pressed="true">Routes</button></div></div>
-        <div class="earth-viewport"><canvas class="earth-model" id="earthCanvas" tabindex="0" aria-label="Interactive Earth. Drag or use arrow keys to rotate. Plus and minus zoom. Home resets the view."></canvas><svg class="earth-labels" id="globeOverlay" aria-label="Sales destinations"></svg><p class="earth-message" role="status">Loading Earth…</p></div>
+        <div class="earth-viewport"><canvas class="earth-model" id="earthCanvas" tabindex="0" aria-label="Interactive Earth. Drag or use arrow keys to rotate. Plus and minus zoom. Home resets the view."></canvas><svg class="earth-labels" id="globeOverlay" aria-label="Recorded delivery destinations"></svg><p class="earth-message" role="status">Loading Earth…</p></div>
         <div class="earth-footer"><div class="earth-selection" aria-live="polite"></div><div class="earth-navigation"><button type="button" data-earth="out" aria-label="Zoom out">−</button><button type="button" data-earth="reset">Reset view</button><button type="button" data-earth="in" aria-label="Zoom in">+</button></div></div>
-        <div class="earth-caption"><span>Drag to rotate · + / − to zoom</span><span>Illustrative routes · demo sales data</span></div>
+        <div class="earth-caption"><span>Drag to rotate · + / − to zoom</span><span>Recorded routes · manual shipment updates</span></div>
         <div class="earth-legend" aria-label="Route status legend"><span class="in-transit">In transit</span><span class="pending">Pending</span><span class="delivered">Delivered</span><span class="delayed">Delayed</span></div>
         <div class="earth-credit">Earth: <a href="https://science.nasa.gov/earth/earth-observatory/" target="_blank" rel="noopener">NASA Earth Observatory</a> · Boundaries: <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a></div>`;
       this.viewport = stage.querySelector('.earth-viewport');
@@ -51,7 +51,7 @@
       this.message = stage.querySelector('.earth-message');
       this.selection = stage.querySelector('.earth-selection');
       try { this.initGL(); } catch (error) {
-        this.message.textContent = '3D Earth is unavailable. Enable WebGL to use the interactive view; sales regions remain available below.';
+        this.message.textContent = '3D Earth is unavailable. Enable WebGL to use the interactive view; delivery destinations remain available below.';
         this.failed = true;
         console.warn(error.message);
       }
@@ -202,7 +202,7 @@
         ...s,points:geo.greatCircle(s.origin,s.destination,96,.055)
       }));
       const r=this.selected;
-      this.selection.innerHTML=r?`<strong>${escape(r.city)} <span>· ${escape(r.country)}</span></strong><small>${new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(r.sales)} sales · ${r.units} units</small>`:'<strong>No sales destinations</strong>';
+      this.selection.innerHTML=r?`<strong>${escape(r.city)}</strong><small>${new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(r.sales)} declared value · ${r.units} shipments</small>`:'<strong>No delivery destinations</strong>';
       this.requestDraw();
     }
     requestDraw(){if(!this.disposed&&!this.frame)this.frame=requestAnimationFrame(()=>{this.frame=0;this.draw();});}
@@ -250,7 +250,8 @@
         const p=project(geo.vector(r.latitude,r.longitude));if(p.z<.04)return '';
         const active=r.id===this.selected?.id;
         placed.push({x:p.x-16,y:p.y-16,w:32,h:32});
-        return `<g class="earth-node ${active?'selected':''}" data-region-id="${escape(r.id)}" tabindex="0" role="button" aria-label="Select ${escape(r.city)}, ${escape(r.country)}"><title>${escape(r.city)}, ${escape(r.country)}</title><circle class="earth-hit" cx="${p.x}" cy="${p.y}" r="11"/>${active?`<circle class="earth-ring" cx="${p.x}" cy="${p.y}" r="9"/>`:''}<circle class="earth-pin" cx="${p.x}" cy="${p.y}" r="4"/></g>`;
+        const place=r.country?`${r.city}, ${r.country}`:r.city;
+        return `<g class="earth-node ${active?'selected':''}" data-region-id="${escape(r.id)}" tabindex="0" role="button" aria-label="Select ${escape(place)}"><title>${escape(place)}</title><circle class="earth-hit" cx="${p.x}" cy="${p.y}" r="11"/>${active?`<circle class="earth-ring" cx="${p.x}" cy="${p.y}" r="9"/>`:''}<circle class="earth-pin" cx="${p.x}" cy="${p.y}" r="4"/></g>`;
       }).join('');
       const labels=this.showCountries?countryLabels.map(([name,lat,lon])=>{
         const p=project(geo.vector(lat,lon));return p.z>.25?label(name,p):'';

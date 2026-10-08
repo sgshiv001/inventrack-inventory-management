@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'">
+  <title>InvenTrack — choose how to work</title>
+  <link rel="stylesheet" href="launcher.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">INVENTRACK FOR WINDOWS</p>
+    <h1>Your inventory. One workspace. Two ways to use it.</h1>
+    <p class="lede">Both options use the same local, private inventory database on this computer. Sign in to work with real products, suppliers, orders, and shipments.</p>
+    <form id="setupForm" hidden>
+      <h2>Set up your workspace</h2>
+      <p>This is a new empty database. Create the administrator account before opening it.</p>
+      <label>Organization name<input id="organization" required maxlength="100" autocomplete="organization" placeholder="Your business"></label>
+      <label>Administrator email<input id="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@company.com"></label>
+      <label>Password<input id="password" type="password" required minlength="12" maxlength="200" autocomplete="new-password" placeholder="At least 12 characters"></label>
+    </form>
+    <div class="choices">
+      <button id="desktop" type="button"><span class="symbol">▣</span><strong>Windows app</strong><small>Open the inventory in a dedicated desktop window.</small></button>
+      <button id="browser" type="button"><span class="symbol">◎</span><strong>Web browser</strong><small>Open the same local workspace in your default browser.</small></button>
+    </div>
+    <p id="status" role="status"></p>
+    <button id="backup" type="button" hidden>Back up workspace</button>
+    <p id="databasePath" class="note"></p>
+    <p class="note">Keep this launcher open while using browser mode. Closing it stops the local server. For access from another computer, deploy the web server with authentication and persistent storage.</p>
+  </main>
+  <script src="launcher.js"></script>
+</body>
+</html>

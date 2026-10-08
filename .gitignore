@@ -1,4 +1,4 @@
-# Runtime databases and snapshots (demo records are seeded by server.js)
+# Runtime databases and snapshots
 data/
 *.db
 *.db-wal
@@ -7,4 +7,9 @@ data/
 *.sqlite-wal
 *.sqlite-shm
 .env
+.env.*
+!.env.example
 node_modules/
+out/
+__pycache__/
+*.py[cod]

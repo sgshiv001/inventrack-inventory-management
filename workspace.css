@@ -126,3 +126,10 @@ body{background:var(--bg);color:var(--ink)}
 .purchase-order-details ul{margin:10px 0 0;padding-left:18px;white-space:normal;min-width:190px;line-height:1.5}
 .purchase-order-details li{margin-bottom:4px}
 .reorder-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* Real records use neutral initials until a product model or image is supplied. */
+.product-visual,.supplier-avatar{display:flex;align-items:center;justify-content:center;background-image:none;background:linear-gradient(145deg,#183d5a,#216e71);color:#e8ffff;font-size:24px;font-weight:800;letter-spacing:.03em}
+.product-visual.compact{font-size:13px}
+.supplier-avatar{font-size:16px}
+/* Team management uses the same panel system as the operations workspace. */
+.user-list{padding:0 20px 15px}.user-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.user-row strong,.user-row small{display:block}.user-row small{color:var(--muted);margin-top:3px}
+.onboarding-panel{margin:0 24px 20px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:18px}.onboarding-panel[hidden]{display:none}.onboarding-panel h2{margin:5px 0}.onboarding-panel p{max-width:670px;color:var(--muted);margin:0}.onboarding-panel>div:last-child{display:flex;gap:8px;flex-wrap:wrap}

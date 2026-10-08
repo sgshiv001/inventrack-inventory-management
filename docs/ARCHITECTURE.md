@@ -1,6 +1,6 @@
 # InvenTrack Architecture
 
-InvenTrack is a deliberately small full-stack application that demonstrates how an operational inventory system can be designed without hiding the important data flows behind a framework.
+InvenTrack is a Windows and web inventory application for single-organization operations. The Electron launcher runs the same Node.js API used by the standalone web deployment.
 
 ## System overview
 
@@ -17,7 +17,7 @@ flowchart LR
   Browser -->|POST /api/auth/login\nHTTP-only session| API
   API -->|transactional reads/writes| DB
   API -->|release notes| Log
-  Browser -->|local preferences\nand offline backup| Local[(localStorage)]
+  Browser -->|display preferences only| Local[(localStorage)]
 ```
 
 The browser owns the interactive workspace and renders the dashboard, inventory catalogue, reorder plan, analytics globe, logistics center, and assistant. The Node.js server provides a same-origin JSON API and serves only the approved public files. SQLite is the source of truth for shared inventory data.
@@ -26,11 +26,11 @@ The browser owns the interactive workspace and renders the dashboard, inventory 
 
 1. The browser requests `GET /api/inventory` when the page opens.
 2. The server returns a revision number and the related collections: suppliers, products, movements, sales regions, shipments, shipment events, and purchase orders.
-3. When `AUTH_REQUIRED=true`, the browser signs in through `/api/auth/login` and sends the resulting HTTP-only session cookie with API requests.
+3. Authentication is always required. The browser signs in through `/api/auth/login` and sends the resulting HTTP-only session cookie with API requests.
 4. Catalogue and logistics edits update the in-memory workspace and send a revision-checked snapshot. The server rejects direct quantity edits in this path and retains existing movement records.
 5. Stock-in, stock-out, and exact-quantity adjustments use `POST /api/stock-movements`. The server checks the organization and role, validates the quantity, updates stock, and appends one movement in a SQLite transaction.
 6. The reorder plan creates supplier-grouped orders through `POST /api/purchase-orders`. Its `/receive` endpoint accepts selected product quantities, adds them and their audit movements atomically, and records per-line received quantities. Over-receipts are rejected; the order remains open until all lines are received.
-7. The server returns the new inventory snapshot and revision so the browser can refresh its workspace.
+7. The server returns the new inventory snapshot and revision so the browser can refresh its workspace. Save confirmations follow the commit. Failed snapshot saves restore the last confirmed view and require reloading before another edit.
 
 ## Data relationships
 
@@ -62,6 +62,7 @@ erDiagram
     float cost
     float price
     string supplier_id FK
+    string model_file
   }
   MOVEMENTS {
     string id PK
@@ -122,6 +123,7 @@ erDiagram
     string organization_id FK
     string email
     string role
+    int active
     datetime created_at
   }
 ```
@@ -131,7 +133,7 @@ erDiagram
 - SQLite foreign keys, `CHECK` constraints, unique SKUs, organization-scoped unique barcodes, and unique tracking IDs.
 - WAL mode and a busy timeout for safer local concurrent reads and writes.
 - Revision-based conflict protection for two browser sessions editing the same workspace.
-- Optional scrypt password hashing, expiring HTTP-only sessions, server-side role checks, and organization-scoped business records when authentication is enabled.
+- Mandatory scrypt password hashing, expiring HTTP-only sessions, server-side role checks, and organization-scoped business records. Administrator-created team accounts can be disabled, revoking their sessions. Login attempts are rate-limited.
 - Full validation before a transaction is committed; invalid payloads roll back completely.
 - Dedicated stock and purchase-order transactions keep quantities, receipts, and audit movements consistent. Regular snapshot saves retain existing movement records.
 - Same-origin protection for writes and a static-file allowlist that never exposes the database or server source.
@@ -143,30 +145,32 @@ erDiagram
 | Module | Responsibility |
 | --- | --- |
 | Dashboard | Stock health, value, margin, categories, and urgent alerts |
-| Products | Searchable catalogue, SKU validation, pricing, and supplier links |
+| Products | Searchable catalogue, SKU/barcode validation, pricing, and supplier links |
 | Reorder plan | Suggested quantities, procurement budget, supplier purchase orders, and receiving |
 | Stock movements | Server-validated stock-in, stock-out, and adjustment ledger with barcode lookup |
 | Suppliers | Partner records and contact links |
 | Shipping & tracking | Shipment KPIs, route view, event timeline, ETA, and status progression |
-| Admin insights | Sales-region globe, market value, supplier contribution, risk, and visitor pulse |
+| Admin insights | Recorded delivery globe, declared shipment value, supplier contribution, stock risk, visitor pulse, and team accounts |
 | Assistant | Local, data-aware answers without sending inventory data to an external AI service |
 
 ## Visual intelligence layer
 
 - The distribution view renders an actual WebGL sphere mesh with a local equirectangular Earth texture, depth-tested lighting, pointer rotation/tilt, scroll zoom, and reset controls. It does not depend on a flat globe image or a third-party rendering library.
-- A transparent SVG layer keeps country labels, sales-territory markers, curved shipment routes, route arrows, status colours, and accessible region selection crisp above the 3D model.
-- Product cards use curated catalogue thumbnails and expose on-hand units, market value, margin rate, supplier, and stock status together.
-- Supplier cards use partner portraits and calculate each partner's linked product lines, market-value share, route activity, and low-stock exposure from the current snapshot.
+- A transparent SVG layer keeps country labels, recorded delivery markers, curved shipment routes, route arrows, status colours, and accessible destination selection crisp above the sphere.
+- Product and supplier cards use neutral initials, not invented photographs. The optional product-model viewer, upload/read endpoints, and third-party viewer dependency were removed in 3.0.1.
+- The `model_file` column is retained only for non-destructive upgrades. Legacy files beside the database are not deleted; workspace backups and restores continue to preserve referenced attachments. These files are no longer exposed by the application API.
 
 ## Deployment boundary
 
 The default runtime database lives in the OS-local InvenTrack data directory, outside the repository. Explicit `DB_PATH` settings override it. A legacy repository database is migrated using a consistent SQLite snapshot without deleting the original. `tools/database.cjs` provides migration, live backups, integrity checks, and restore to a new file; runtime databases are excluded from Git.
 
-The local Node.js + SQLite server is the complete academic demonstration. A hosted portfolio demo can run as a static snapshot using the browser's seeded fallback data. A commercial multi-tenant release should move the API to a managed Node-compatible host, migrate SQLite to PostgreSQL, add authentication and organization isolation, and configure backups before accepting customer data.
+New databases start empty. There is no seeded browser inventory, automatic legacy import, or reset endpoint. The static frontend requires the API. The Windows app starts one loopback server on an available port; its desktop and browser modes use that same database. Renderers are sandboxed with Node integration disabled, restricted navigation, and narrow launcher IPC.
+
+A public web deployment requires HTTPS, persistent storage, monitoring, backup/restore procedures, and a security review. Multi-tenant self-service provisioning, managed identity, password recovery, and live carrier integrations are outside this release.
 
 ## Design decisions
 
-- **No framework dependency:** the project keeps the request/response and rendering lifecycle visible for an MCA evaluation.
-- **One snapshot save:** the compact data model makes rollback and conflict handling easy to explain during a viva.
-- **Progressive enhancement:** the UI remains demonstrable from seeded browser data when the local API is unavailable, while connected sessions persist to SQLite.
+- **One shared application:** desktop and browser modes use the same operational API and UI.
+- **Revision-checked catalogue saves:** conflicts are rejected; dedicated stock transactions keep the ledger authoritative.
+- **No simulated inventory fallback:** database unavailability is visible and blocks writes.
 - **Operational language:** every screen describes the decision a user can make next rather than presenting decorative metrics without context.

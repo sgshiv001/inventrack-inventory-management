@@ -1,7 +1,0 @@
-Name,SKU,Category,Quantity,Reorder Level,Suggested Reorder,Cost,Price,Value,Margin,Supplier,Status
-Wireless Keyboard,ELEC-001,Electronics,28,10,0,1250,1899,35000,18172,Nova Tech Distributors,In stock
-USB-C Hub 7-in-1,ELEC-014,Electronics,7,8,9,1750,2499,12250,5243,Nova Tech Distributors,Low stock
-A4 Premium Paper,STAT-021,Stationery,64,15,0,245,349,15680,6656,Metro Office Supplies,In stock
-Ergonomic Office Chair,FURN-005,Furniture,4,5,6,7200,9999,28800,11196,Metro Office Supplies,Low stock
-Organic Green Tea,PAN-032,Pantry,42,12,0,180,275,7560,3990,GreenLeaf Wholesale,In stock
-Desk Organizer,STAT-044,Stationery,0,6,12,320,499,0,0,Metro Office Supplies,Out of stock

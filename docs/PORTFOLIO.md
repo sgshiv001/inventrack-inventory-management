@@ -1,29 +1,18 @@
-# Portfolio demonstration guide
+# Product walkthrough
 
-## What to show in two minutes
+InvenTrack 3.0.4 is an operational single-organization workspace. New databases contain no sample products, partners, or shipments. The optional product-model viewer has been removed; the recorded-delivery globe remains. The selected configuration is local PC only, with Windows and browser modes and no new public hosting.
 
-1. Start on **Dashboard** and point out stock health, cost value, market value, and low-stock alerts.
-2. Open **Shipping & tracking**. Select `IT-2026-1042` to show the route map and event timeline.
-3. Use **Advance status** to move a shipment from pending or in transit to its next state.
-4. Open **Admin insights** to connect shipment destinations with the sales-region globe.
-5. Ask the assistant: `Which shipments are active?` or `What needs reordering?`
-6. Open **Log book** to show the release history and workspace activity.
+## Intended users
 
-## Why this is a good MCA project
+Small distributors, wholesalers, stock managers, and purchasing teams who need a local Windows workspace or a managed web deployment. Retailer-role accounts have read-only access to the organization catalogue.
 
-- It demonstrates a complete information-system flow: catalogue, stock ledger, partner records, shipping activity, analytics, and audit history.
-- It makes the database visible through a clear relational schema and transactional save path.
-- It shows practical safeguards such as duplicate-SKU validation, overdraft protection, stale-write detection, and safe static-file serving.
-- The interface is intentionally readable and responsive instead of being a collection of disconnected charts.
+## First working session
 
-## What is intentionally out of scope
+1. Create the administrator at Windows first launch, or configure the web server bootstrap credentials.
+2. Add suppliers, then add products or import a CSV catalogue. Confirm opening stock against physical inventory.
+3. Record stock-in, stock-out, and adjustments through Stock Movements.
+4. Review low-stock recommendations, create supplier orders, and record actual partial receipts.
+5. Add shipment routes with accurate coordinates and record status changes. The globe reflects these records, not live carrier telemetry.
+6. Create team accounts and back up the workspace. Backups also preserve legacy attachments from earlier releases when present.
 
-This is a portfolio and academic demonstration, not a production SaaS product. The role selector is a workspace simulation, customer authentication is not enabled, and the local Node.js server uses SQLite. Those constraints are documented honestly so the next production steps are easy to discuss.
-
-## Suggested GitHub presentation
-
-- Put the live demo link near the top of the repository description.
-- Keep the two interface previews visible in the README.
-- Pin this repository and add the technology stack to your profile README.
-- Use the architecture page during a viva or interview to explain the request, validation, transaction, and response flow.
-- Mention that shipment records and events are seeded for a repeatable demo; they are not real customer or carrier data.
+See [LAUNCH.md](../LAUNCH.md) for deployment and recovery. Do not present manual shipment updates as carrier-integrated tracking or estimated inventory margins as realized sales.

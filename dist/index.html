@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="InvenTrack is a polished MCA inventory and logistics intelligence demo with stock analytics, supplier operations, shipment tracking, and a sales-region globe.">
-  <meta name="keywords" content="inventory management system, logistics dashboard, MCA project, JavaScript project, shipment tracking">
+  <meta name="description" content="InvenTrack is an inventory and logistics workspace for products, stock movements, suppliers, purchase orders, and shipment tracking.">
+  <meta name="keywords" content="inventory management, Windows inventory app, logistics dashboard, stock control, shipment tracking">
   <meta name="theme-color" content="#191737">
   <meta property="og:title" content="InvenTrack | Inventory &amp; Logistics Intelligence">
-  <meta property="og:description" content="Explore a full-stack inventory and shipment tracking workspace built for an MCA portfolio project.">
+  <meta property="og:description" content="Manage products, stock, suppliers, orders, and shipment routes in a Windows or web workspace.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%235b5ce2'/%3E%3Cstop offset='1' stop-color='%2318c8d8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Ctext x='32' y='40' text-anchor='middle' fill='white' font-family='Arial' font-size='24' font-weight='700'%3EIT%3C/text%3E%3C/svg%3E">
-  <title>InvenTrack | MCA Inventory Management System</title>
+  <title>InvenTrack | Inventory Operations</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="workspace.css">
   <link rel="stylesheet" href="globe.css">
@@ -30,7 +30,7 @@
         <button class="nav-link" data-view="logistics"><span class="nav-icon">T</span> Shipping &amp; tracking</button>
         <button class="nav-link" data-view="analytics"><span class="nav-icon">A</span> Admin insights</button>
         <button class="nav-link" data-view="logbook"><span class="nav-icon">L</span> Log book</button>
-        <button class="nav-link" data-view="about"><span class="nav-icon">i</span> About Project</button>
+        <button class="nav-link" data-view="about"><span class="nav-icon">i</span> About InvenTrack</button>
       </nav>
       <div class="sidebar-footer">
         <span class="course-badge">WORKSPACE / 01</span>
@@ -49,7 +49,7 @@
         <div class="topbar-actions">
           <button class="connection-status" id="connectionStatus" type="button" title="Reload inventory from database">Connecting…</button>
           <button type="button" class="btn secondary auth-button" id="authButton" hidden>Sign in</button>
-          <button type="button" class="role-chip" id="roleChip" title="Change workspace role" aria-label="Change workspace role">Admin workspace</button>
+          <button type="button" class="role-chip" id="roleChip" title="Current account role" aria-label="Current account role">Account role</button>
           <button class="icon-btn theme-toggle" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">&#9790;</button>
           <button class="icon-btn notification-btn" id="notificationBtn" title="Open notifications" aria-label="Open notifications">&#128276;<b id="notificationCount">0</b></button>
           <input id="importFile" class="visually-hidden" type="file" accept=".csv,text/csv">
@@ -74,8 +74,9 @@
           <button class="module-card" data-go="reorder"><span class="module-icon reorder">R</span><strong>Reorder plan</strong><small>Plan procurement</small></button>
           <button class="module-card" data-go="analytics"><span class="module-icon analytics">A</span><strong>Analytics</strong><small>Company insights</small></button>
           <button class="module-card" data-go="logistics"><span class="module-icon logistics">T</span><strong>Shipping</strong><small>Track deliveries</small></button>
-          <button class="module-card" data-go="logbook"><span class="module-icon reports">L</span><strong>Activity log</strong><small>Review audit trail</small></button>
+          <button class="module-card" data-go="logbook"><span class="module-icon reports">L</span><strong>Stock ledger</strong><small>Review stock history</small></button>
         </section>
+        <section class="panel onboarding-panel" id="onboardingPanel" hidden><div><span class="eyebrow">GET STARTED</span><h2>Set up your inventory</h2><p>This workspace is empty. Add a supplier, then create products with opening quantities or import a CSV. All stock changes are recorded in the database.</p></div><div><button class="btn secondary" data-go="suppliers">Add supplier</button><button class="btn primary" data-go="products">Add products</button></div></section>
         <div class="metric-grid">
           <article class="metric-card blue"><div class="metric-icon">P</div><div><span>Total products</span><strong id="metricProducts">0</strong><small id="metricCategories">0 categories</small></div></article>
           <article class="metric-card green"><div class="metric-icon">U</div><div><span>Units in stock</span><strong id="metricUnits">0</strong><small>Across all products</small></div></article>
@@ -127,7 +128,7 @@
           <button class="btn primary" id="addProductBtn">+ Add product</button>
         </div>
         <section class="product-showcase" aria-labelledby="productShowcaseTitle">
-          <div class="showcase-head"><div><span class="eyebrow">CATALOGUE VISUALS</span><h2 id="productShowcaseTitle">Product portfolio</h2><p>See the items behind your stock value, margin, and replenishment decisions.</p></div><span class="showcase-note">Curated demo catalogue</span></div>
+          <div class="showcase-head"><div><span class="eyebrow">CATALOGUE</span><h2 id="productShowcaseTitle">Product portfolio</h2><p>See the items behind your stock value, margin, and replenishment decisions.</p></div><span class="showcase-note">Live inventory</span></div>
           <div class="product-showcase-grid" id="productShowcase"></div>
         </section>
         <article class="panel table-panel">
@@ -195,13 +196,14 @@
         <div class="analytics-summary" id="analyticsSummary"></div>
         <section class="distribution-command">
           <aside class="distribution-stats">
-            <span class="eyebrow">DISTRIBUTION INTELLIGENCE</span><h3>Sales territory network</h3><p>Demo sales regions connected to the primary India fulfilment hub.</p>
+            <span class="eyebrow">DISTRIBUTION INTELLIGENCE</span><h3>Delivery network</h3><p>Explore recorded shipment routes on the interactive 3D globe.</p>
             <div id="distributionStats"></div>
-            <span class="data-note">DEMO TERRITORY DATA · READY FOR LIVE SALES DESTINATIONS</span>
+            <span class="data-note">ROUTES FROM RECORDED SHIPMENTS</span>
           </aside>
-          <div class="globe-stage" id="globeStage" aria-label="Global sales and distribution network"></div>
-          <aside class="region-feed"><div class="panel-head"><div><h2>Sales regions</h2><p>Current territory performance</p></div></div><div id="regionFeed"></div></aside>
+          <div class="globe-stage" id="globeStage" aria-label="Recorded shipment delivery network"></div>
+          <aside class="region-feed"><div class="panel-head"><div><h2>Delivery destinations</h2><p>Declared shipment activity</p></div></div><div id="regionFeed"></div></aside>
         </section>
+        <article class="panel" id="userManagement" hidden><div class="panel-head"><div><h2>Team accounts</h2><p>Create role-based access and disable accounts no longer in use.</p></div><button class="btn primary" id="addUserBtn" type="button">+ Add account</button></div><div class="user-list" id="usersList"></div></article>
         <div class="analytics-grid">
           <article class="panel"><div class="panel-head"><div><h2>Value by category</h2><p>Market value held in each product group</p></div></div><div id="categoryValueChart" class="insight-chart"></div></article>
           <article class="panel"><div class="panel-head"><div><h2>Supplier contribution</h2><p>Products and inventory value by supplier</p></div></div><div id="supplierContribution" class="supplier-contribution"></div></article>
@@ -211,12 +213,11 @@
 
       <section class="view" id="logbookView">
         <div class="logbook-hero">
-          <div><span class="eyebrow">AUDIT TRAIL</span><h2>Every decision, in one place.</h2><p>Review stock changes, catalogue updates, and workspace events with a clear operational timeline.</p></div>
-          <button class="btn secondary" id="clearLogBtn">Clear activity</button>
+          <div><span class="eyebrow">STOCK LEDGER</span><h2>Every stock movement, in one place.</h2><p>Review recorded stock additions, removals, adjustments, and purchase-order receipts.</p></div>
         </div>
         <article class="panel"><div class="panel-head"><div><h2>Product updates</h2><p>Release history stored in your database</p></div></div><div class="activity-list" id="releaseLog"></div></article>
         <article class="panel">
-          <div class="panel-head"><div><h2>Activity log</h2><p id="logbookSummary">Recent workspace events</p></div></div>
+          <div class="panel-head"><div><h2>Stock movement ledger</h2><p id="logbookSummary">Recorded inventory changes</p></div></div>
           <div class="activity-list" id="activityList"></div>
         </article>
       </section>
@@ -224,20 +225,20 @@
       <section class="view" id="aboutView">
         <article class="project-hero">
           <div>
-            <span class="eyebrow">MCA ACADEMIC PROJECT</span>
+            <span class="eyebrow">ABOUT INVENTRACK</span>
             <h2>Inventory control made simple, clear, and practical.</h2>
-            <p>InvenTrack demonstrates how a browser-based information system can organize product records, monitor stock, manage suppliers, and maintain an auditable history of inventory changes.</p>
+            <p>InvenTrack organizes product records, monitors stock, manages suppliers and purchase orders, and preserves an auditable movement history.</p>
             <div class="tech-pills" aria-label="Technologies used">
               <span>HTML5</span><span>CSS3</span><span>JavaScript</span><span>Node.js</span><span>SQLite</span>
             </div>
           </div>
-          <div class="project-mark" aria-hidden="true"><strong>IT</strong><span>v2.6</span></div>
+          <div class="project-mark" aria-hidden="true"><strong>IT</strong><span>v3.0</span></div>
         </article>
 
         <div class="project-grid">
           <article class="panel info-card">
             <span class="card-number">01</span>
-            <h3>Project objective</h3>
+            <h3>Business objective</h3>
             <p>Replace error-prone manual stock registers with a responsive system that provides fast search, validation, low-stock visibility, and useful reports.</p>
           </article>
           <article class="panel info-card">
@@ -263,10 +264,7 @@
           </div>
         </article>
 
-        <article class="academic-note">
-          <div><strong>Ready for project demonstration</strong><p>The application includes realistic sample records. Use the reset button before a classroom demo to restore the original dataset.</p><p class="privacy-note"><strong>Privacy note:</strong> visitor analytics uses a random browser ID and daily de-duplication; no IP address or personal data is stored.</p></div>
-          <button class="btn secondary" id="resetDataBtn">Reset demo data</button>
-        </article>
+        <article class="academic-note"><div><strong>Your data stays yours</strong><p>New workspaces start empty. Add suppliers and products, import a CSV, and record live stock movements. Back up the SQLite database regularly.</p></div></article>
       </section>
     </main>
   </div>
@@ -321,20 +319,6 @@
     </form>
   </dialog>
 
-  <dialog id="welcomeDialog" class="welcome-dialog">
-    <form method="dialog" id="welcomeForm">
-      <div class="welcome-kicker">WELCOME TO INVENTRACK</div>
-      <div class="dialog-head"><div><h2>Your command center is ready.</h2><p>Choose the perspective that best matches how you manage inventory. You can switch this at any time.</p></div></div>
-      <div class="welcome-preview"><span>LIVE OPERATIONS</span><strong>Stock, supplier and value intelligence in one workspace.</strong></div>
-      <div class="role-options">
-        <button type="button" class="role-option" data-role="retailer"><strong>Retailer</strong><span>Track daily sales, stock levels, and fast-moving products.</span></button>
-        <button type="button" class="role-option" data-role="wholesaler"><strong>Wholesaler</strong><span>Coordinate suppliers, bulk orders, and replenishment planning.</span></button>
-        <button type="button" class="role-option" data-role="admin"><strong>Administrator</strong><span>Oversee operations, audit activity, and configure the workspace.</span></button>
-      </div>
-      <div class="dialog-actions"><button class="btn secondary" type="button" id="skipWelcomeBtn">Use default admin</button></div>
-    </form>
-  </dialog>
-
   <dialog id="barcodeDialog" class="barcode-dialog">
     <div class="barcode-shell"><div class="dialog-head"><div><h2>Scan a barcode</h2><p id="barcodeStatus">Allow camera access and hold a barcode in view.</p></div><button class="close-btn" type="button" data-close-dialog aria-label="Close">&times;</button></div><video id="barcodeVideo" playsinline muted></video><div class="dialog-actions"><button class="btn secondary" type="button" data-close-dialog>Cancel</button></div></div>
   </dialog>
@@ -360,8 +344,12 @@
         <label>Carrier<input id="shipmentCarrier" required maxlength="80" placeholder="e.g. InvenTrack Express"></label>
         <label>Shipment value (&#8377;)<input id="shipmentValue" type="number" required min="0" step="100" value="0"></label>
         <label>Weight (kg)<input id="shipmentWeight" type="number" required min="0" step="0.1" value="1"></label>
-        <label>Origin<input id="shipmentOrigin" required maxlength="80" value="Mumbai, India"></label>
+        <label>Origin<input id="shipmentOrigin" required maxlength="80" placeholder="City, country"></label>
         <label>Destination<input id="shipmentDestination" required maxlength="80" placeholder="e.g. Bengaluru, India"></label>
+        <label>Origin latitude<input id="shipmentOriginLatitude" type="number" min="-90" max="90" step="any" required placeholder="e.g. 19.076"></label>
+        <label>Origin longitude<input id="shipmentOriginLongitude" type="number" min="-180" max="180" step="any" required placeholder="e.g. 72.877"></label>
+        <label>Destination latitude<input id="shipmentDestinationLatitude" type="number" min="-90" max="90" step="any" required></label>
+        <label>Destination longitude<input id="shipmentDestinationLongitude" type="number" min="-180" max="180" step="any" required></label>
         <label>Estimated delivery<input id="shipmentEta" type="date" required></label>
         <label>Status<select id="shipmentStatus"><option value="pending">Pending</option><option value="in-transit">In transit</option><option value="delayed">Delayed</option></select></label>
       </div>
@@ -379,6 +367,11 @@
     </form>
   </dialog>
 
+
+  <dialog id="userDialog">
+    <form id="userForm" method="dialog"><div class="dialog-head"><div><h2>Add team account</h2><p>The new user can sign in with these credentials.</p></div><button type="button" class="close-btn" data-close-dialog aria-label="Close">&times;</button></div><div class="form-grid"><label class="wide">Email<input id="userEmail" type="email" required maxlength="254"></label><label class="wide">Temporary password<input id="userPassword" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></label><label class="wide">Role<select id="userRole"><option value="retailer">Retailer · view only</option><option value="wholesaler">Wholesaler · inventory editor</option><option value="admin">Administrator · team and inventory</option></select></label></div><p id="userError" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="btn secondary" data-close-dialog>Cancel</button><button id="userSubmit" class="btn primary">Create account</button></div></form>
+  </dialog>
+
   <button class="assistant-fab" id="assistantToggle" aria-label="Open inventory assistant"><span>AI</span><b>Ask InvenTrack</b></button>
   <section class="assistant-panel" id="assistantPanel" aria-label="InvenTrack inventory assistant" hidden>
     <div class="assistant-head"><div><span class="assistant-orb">AI</span><div><strong>InvenTrack Assistant</strong><small>Live inventory intelligence</small></div></div><button class="close-btn" id="assistantClose" aria-label="Close assistant">&times;</button></div>
@@ -391,6 +384,7 @@
   <script src="runtime-config.js"></script>
   <script src="globe-math.js"></script>
   <script src="globe.js"></script>
+  <script src="vendor/zxing-browser.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
