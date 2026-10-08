@@ -30,8 +30,10 @@ The business-app/testing checklists informed the role, error-path, empty-state, 
 
 ## Release files
 
-- [Windows installer](<C:/Users/shivu/OneDrive/Documents/GitHub/inventrack-inventory-management/out/make/squirrel.windows/x64/InvenTrack-3.0.0 Setup.exe>)
-- [Portable Windows ZIP](C:/Users/shivu/OneDrive/Documents/GitHub/inventrack-inventory-management/out/make/zip/win32/x64/InvenTrack-win32-x64-3.0.0.zip)
+- Historical installer: `InvenTrack-3.0.0 Setup.exe`.
+- Historical portable ZIP: `InvenTrack-win32-x64-3.0.0.zip`.
+
+These filenames identify the original test artifacts, not current download links. Use the [current Windows downloads](../downloads/windows/README.md) for the latest release.
 - [Unpacked Windows executable](C:/Users/shivu/OneDrive/Documents/GitHub/inventrack-inventory-management/out/InvenTrack-win32-x64/InvenTrack.exe)
 
 Use the installer for normal ongoing use. Use the ZIP to try the application without installing it: extract the entire ZIP before running `InvenTrack.exe`. Both formats include their runtime; installed users do not need Node.js or Python. The portable version still stores inventory in a per-user data folder, rather than inside its extracted application directory.

@@ -17,10 +17,13 @@ Date: 8 October 2026.
 - `python -m unittest discover -s tests -p report_tool.py`: PASS, 2 tests.
 - Frontend source and static copies match; retired chat controls and handlers are absent.
 - GitHub repository website field is empty. The obsolete hosted site was already restricted to its owner, with no other viewers or editors and no schedules; no public deployment was performed.
+- Removed obsolete live-demo links from the 2.2.0, 2.3.0, 2.4.0, and 2.5.0 release notes while preserving their other notes, assets, and tags. Release-note scanning found no removed-provider references afterward.
 
 - `npm run desktop:make`: PASS, Windows x64 installer and portable ZIP generated.
 - `node tests/package.cjs`: PASS, packaged runtime matches source and metadata, includes required runtime dependencies and license notices, and excludes private/development files and download documentation.
 - Tracked first-party text scan found no removed provider names or hosted-demo links. The operational runtime has no chat controls or handlers.
+- [GitHub test workflow](https://github.com/sgshiv001/inventrack-inventory-management/actions/runs/37759632980) for source commit `0025524887d49253773f33421a23f1c3105e6b21`: PASS.
+- Version 3.0.5 installer, portable ZIP, and checksum file were published as GitHub Release assets. Server-reported sizes and SHA-256 digests match local files; public download links return HTTP 200. The `v3.0.5` tag points to the source commit above.
 
 The earlier release reports remain historical evidence, not fresh 3.0.5 UI tests. This release does not claim a new installed-window or portable-window end-to-end UI test.
 
