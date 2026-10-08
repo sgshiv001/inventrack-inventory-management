@@ -1,5 +1,7 @@
 # InvenTrack 3.0.4 — local-PC release verification
 
+Historical screenshots of the retired interface were removed in 3.0.5. These results record the earlier test run, not current-version UI verification.
+
 Date: 1 October 2026. Scope: Windows application and browser access on this PC only. The request for public hosting was withdrawn; no hosting resources, charges, public access changes, or deployments were created in this turn. The pre-existing Sites frontend was inspected but left unchanged.
 
 ## Changes
@@ -34,7 +36,7 @@ Date: 1 October 2026. Scope: Windows application and browser access on this PC o
 | Portable restart / persistence | PASS: after closing and relaunching the app, dashboard showed 18 units and the saved `PORTABLE-3.0.4-UI` movement |
 | Whitespace check | PASS: `git diff --check`; Git emitted line-ending normalization notices only |
 
-Browser export: `C:\Users\shivu\Downloads\inventrack-inventory-2026-10-01 (4).csv`, containing verification SKU `VERIFY-001`, quantity `12`. [Browser evidence](web-verification-3.0.4.jpg).
+Browser export: `C:\Users\shivu\Downloads\inventrack-inventory-2026-10-01 (4).csv`, containing verification SKU `VERIFY-001`, quantity `12`.
 
 Human-assisted native exports: `C:\Users\shivu\Downloads\inventrack-inventory-2026-10-01 (5).csv` and ` (6).csv`, saved five seconds apart. Both contain `Final verified Windows item`, SKU `VERIFY-001`, quantity `17`. Both have SHA-256 `06B89229C7846AADC861332470871FF10B041950F09EF95524018525978557CA`. The user confirmed the second filename; the agent verified both files and preservation of earlier hashes. A native success-dialog screenshot was not captured.
 
@@ -44,15 +46,15 @@ Installed API verification used only `C:\Users\shivu\AppData\Local\Temp\inventra
 
 Following the user's request to continue UI testing, the installed verification instance was closed and the final extracted 3.0.4 portable executable was launched using the same isolated database. The installed reload-warning cancellation also left its displayed inventory unchanged; acceptance of that native reload warning was not tested in this continuation.
 
-The portable stock-out validation retained quantity 17 and six ledger entries. A valid stock-in then produced quantity 18 and exactly one new movement with reference `PORTABLE-3.0.4-UI`, independently confirmed in SQLite and the visible ledger. [Portable stock evidence](portable-verification-3.0.4.png).
+The portable stock-out validation retained quantity 17 and six ledger entries. A valid stock-in then produced quantity 18 and exactly one new movement with reference `PORTABLE-3.0.4-UI`, independently confirmed in SQLite and the visible ledger.
 
-Native export `C:\Users\shivu\Downloads\inventrack-inventory-2026-10-01 (7).csv` and launcher-opened Edge export ` (8).csv` both contain SKU `VERIFY-001`, quantity `18`, and SHA-256 `FD73D5632FE66D5DB9E3F9C589D81C96AEDA1E42E0A32647D0CF412A773AE3AF`. The native success dialog confirmed `(7).csv` after completion. The four original exports and `(5).csv`/`(6).csv` retained their previous hashes. [Native export evidence](export-verification-3.0.4.png), [browser-mode evidence](browser-mode-verification-3.0.4.png).
+Native export `C:\Users\shivu\Downloads\inventrack-inventory-2026-10-01 (7).csv` and launcher-opened Edge export ` (8).csv` both contain SKU `VERIFY-001`, quantity `18`, and SHA-256 `FD73D5632FE66D5DB9E3F9C589D81C96AEDA1E42E0A32647D0CF412A773AE3AF`. The native success dialog confirmed `(7).csv` after completion. The four original exports and `(5).csv`/`(6).csv` retained their previous hashes.
 
 The portable server was bound to `127.0.0.1:64654`. Clicking **Web browser** opened Edge at that exact server, and the browser showed the same 18-unit inventory. Signing out cleared the displayed inventory and returned the authentication dialog. No captured console warnings or errors were reported during this browser check.
 
-Shipping displayed the recorded `VERIFY-ROUTE-001` route from Mumbai to Chennai with manually recorded carrier and in-transit status. The delivery globe responded visibly to drag, zoom-in and reset. No shipment status was changed. [Globe evidence](globe-verification-3.0.4.png).
+Shipping displayed the recorded `VERIFY-ROUTE-001` route from Mumbai to Chennai with manually recorded carrier and in-transit status. The delivery globe responded visibly to drag, zoom-in and reset. No shipment status was changed.
 
-After a normal close and relaunch, the portable server used `127.0.0.1:59950`; the dashboard retained 18 units and the labelled movement. One hidden-launch test-harness attempt exposed no targetable window; that isolated idle process was stopped, and the visible launch/restart check passed. [Restart evidence](restart-verification-3.0.4.png).
+After a normal close and relaunch, the portable server used `127.0.0.1:59950`; the dashboard retained 18 units and the labelled movement. One hidden-launch test-harness attempt exposed no targetable window; that isolated idle process was stopped, and the visible launch/restart check passed.
 
 The existing standalone database `C:\Users\shivu\AppData\Local\InvenTrack\inventrack.db` retained SHA-256 `5BF65035D53463F2B528FE0215C641FF7A2D61BCC6B46172445EF94F5AB47A2E`.
 

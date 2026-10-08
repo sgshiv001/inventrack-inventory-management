@@ -1,5 +1,7 @@
 # InvenTrack 3.0.3 verification report
 
+Historical screenshots of the retired interface were removed in 3.0.5. These results record the earlier test run, not current-version UI verification.
+
 Date: 1 October 2026. Platform: Windows 11 Home Single Language, x64, build 26200.
 
 ## Outcome
@@ -50,7 +52,6 @@ Tested the Node server on localhost with a separate database and test-only accou
 - Downloaded an actual CSV through final UI. Its saved contents matched the final product name, SKU `VERIFY-001` and quantity `7`. No browser warning/error console entries were reported during final checks.
 - Decoder fallback loaded instead of the old unsupported-decoder error. The in-app browser remained at its camera-access request, so it did not provide a physical scan result.
 
-Evidence: [web catalogue](web-verification-3.0.3.jpg), [delivery globe](globe-verification-3.0.3.jpg).
 
 ## Windows and installer verification
 
@@ -68,7 +69,6 @@ All mutations used a disposable database outside the installation directory. No 
 
 10. Fresh-installed the final 3.0.3 Setup after the uninstall test. Exit code zero; registered version 3.0.3, both shortcuts restored, and installed app.asar matched the final package. The existing web database hash remained unchanged. The final version is installed on this computer; the earlier test uninstall is recoverable by this installer. Closed the isolated test launcher and launched the installed application without the test database override for normal use. The resulting launcher was present but minimized at final observation; no operational account was created by the agent.
 
-Evidence: [installed catalogue](windows-verification-3.0.3.png), [portable native ledger](portable-verification-3.0.3.png).
 
 ## Camera and remaining boundaries
 

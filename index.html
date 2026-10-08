@@ -372,14 +372,6 @@
     <form id="userForm" method="dialog"><div class="dialog-head"><div><h2>Add team account</h2><p>The new user can sign in with these credentials.</p></div><button type="button" class="close-btn" data-close-dialog aria-label="Close">&times;</button></div><div class="form-grid"><label class="wide">Email<input id="userEmail" type="email" required maxlength="254"></label><label class="wide">Temporary password<input id="userPassword" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></label><label class="wide">Role<select id="userRole"><option value="retailer">Retailer · view only</option><option value="wholesaler">Wholesaler · inventory editor</option><option value="admin">Administrator · team and inventory</option></select></label></div><p id="userError" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="btn secondary" data-close-dialog>Cancel</button><button id="userSubmit" class="btn primary">Create account</button></div></form>
   </dialog>
 
-  <button class="assistant-fab" id="assistantToggle" aria-label="Open inventory assistant"><span>AI</span><b>Ask InvenTrack</b></button>
-  <section class="assistant-panel" id="assistantPanel" aria-label="InvenTrack inventory assistant" hidden>
-    <div class="assistant-head"><div><span class="assistant-orb">AI</span><div><strong>InvenTrack Assistant</strong><small>Live inventory intelligence</small></div></div><button class="close-btn" id="assistantClose" aria-label="Close assistant">&times;</button></div>
-    <div class="assistant-messages" id="assistantMessages" aria-live="polite"></div>
-    <div class="assistant-suggestions"><button data-assistant-question="What needs reordering?">Reorder risks</button><button data-assistant-question="Show stock value">Stock value</button><button data-assistant-question="Which supplier has the most value?">Top supplier</button></div>
-    <form class="assistant-form" id="assistantForm"><input id="assistantInput" maxlength="180" placeholder="Ask about stock, value, or suppliers..." autocomplete="off"><button class="btn primary">Send</button></form>
-  </section>
-
   <div class="toast" id="toast" role="status"></div>
   <script src="runtime-config.js"></script>
   <script src="globe-math.js"></script>

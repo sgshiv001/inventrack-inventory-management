@@ -20,13 +20,13 @@ const path = require('node:path');
   }
   const source = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const packaged = JSON.parse(asar.extractFile(archive, 'package.json').toString());
-  for (const key of ['name', 'productName', 'version', 'main', 'dependencies']) {
+  for (const key of ['name', 'productName', 'version', 'author', 'main', 'dependencies']) {
     assert.deepEqual(packaged[key], source[key], `runtime package field: ${key}`);
   }
   assert.ok(entries.includes('/node_modules/electron-squirrel-startup/index.js'));
   assert.ok(entries.includes('/assets/earth-daymap.jpg'));
   assert.ok(!entries.some(entry => /model-viewer/i.test(entry)), 'retired viewer must not ship');
-  assert.ok(!entries.some(entry => /^\/(?:data|tests|reports|dist|docs|\.git|\.github|\.codex|\.openai)(?:\/|$)/i.test(entry)), 'private/development folders must not ship');
+  assert.ok(!entries.some(entry => /^\/(?:data|tests|reports|dist|docs|downloads|\.[^/]+)(?:\/|$)/i.test(entry)), 'private/development folders must not ship');
   assert.ok(!entries.some(entry => /(?:^|\/)\.env(?:\.|$)|\.(?:db|sqlite|sqlite3)(?:-wal|-shm)?$/i.test(entry)), 'databases and environment files must not ship');
   assert.ok(!entries.some(entry => /\.(?:glb|gltf)$/i.test(entry)), 'no product-model assets');
   console.log(`PASS: Windows ${packaged.version} runtime sources, metadata, dependency, globe asset, viewer removal, and private-file exclusion.`);

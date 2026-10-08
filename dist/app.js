@@ -512,39 +512,5 @@ loadFromServer();
 registerVisitor();
 $('connectionStatus').onclick=()=>{if(confirm('Reload the latest database records? Export CSV first if you have unsaved changes.'))loadFromServer();};
 
-/* Data-aware inventory assistant. It answers from the live database without sending
-   company data to a third-party AI service. */
-function assistantReply(question){
-  const text=question.toLowerCase(),products=db.products,low=products.filter(p=>p.quantity<=p.reorder),cost=products.reduce((n,p)=>n+p.quantity*p.cost,0),market=products.reduce((n,p)=>n+p.quantity*p.price,0),margin=market-cost;
-  const suppliers=db.suppliers.map(s=>({name:s.name,items:products.filter(p=>p.supplierId===s.id)})).map(s=>({...s,value:s.items.reduce((n,p)=>n+p.quantity*p.price,0)})).sort((a,b)=>b.value-a.value);
-  if(/hello|hi |welcome/.test(text))return `Hello! I can help you review ${products.length} products, stock risk, values, and supplier performance.`;
-  if(/reorder|low.stock|risk|shortage/.test(text))return low.length?`${low.length} product line${low.length===1?' is':'s are'} at or below reorder level: ${low.map(p=>`${p.name} (${p.quantity} left)`).join(', ')}. The estimated reorder budget is ${rupees.format(low.reduce((n,p)=>n+suggestedReorderQty(p)*p.cost,0))}.`:'Great news: every product is currently above its reorder level.';
-  if(/market|selling|revenue/.test(text))return `Your available inventory has an estimated market value of ${rupees.format(market)}. This is based on current selling prices, not completed sales.`;
-  if(/profit|margin|gross/.test(text))return `The potential gross margin on current stock is ${rupees.format(margin)} (${market?Math.round(margin/market*100):0}% of market value).`;
-  if(/supplier|distributor|vendor/.test(text)){const top=suppliers[0];return top?`${top.name} currently has the largest catalogue contribution at ${rupees.format(top.value)} across ${top.items.length} product line${top.items.length===1?'':'s'}.`:'No supplier records are available yet.'}
-  if(/shipment|shipping|delivery|track|logistics/.test(text)){const shipments=db.shipments||[],active=shipments.filter(shipment=>shipment.status==='in-transit'||shipment.status==='pending').length,delayed=shipments.filter(shipment=>shipment.status==='delayed').length;return shipments.length?`There are ${active} active shipment${active===1?'':'s'}, ${shipments.filter(shipment=>shipment.status==='delivered').length} delivered, and ${delayed} delayed. Open Shipping & tracking to inspect routes and shipment events.`:'No shipment records are available yet.'}
-  if(/value|worth|cost/.test(text))return `Current inventory cost value is ${rupees.format(cost)} and its estimated market value is ${rupees.format(market)}.`;
-  if(/stock|product|unit/.test(text))return `You have ${products.reduce((n,p)=>n+p.quantity,0).toLocaleString('en-IN')} units across ${products.length} products. ${low.length?`${low.length} product lines need attention.`:'Stock health is good.'}`;
-  return 'Try asking about reorder risks, stock value, market value, gross margin, or your top supplier.';
-}
-function addAssistantMessage(message,from='assistant'){
-  const messages=$('assistantMessages');
-  messages.insertAdjacentHTML('beforeend',`<div class="assistant-message ${from}">${escapeHtml(message)}</div>`);
-  messages.scrollTop=messages.scrollHeight;
-}
-function openAssistant(){
-  const panel=$('assistantPanel');panel.hidden=false;panel.classList.add('open');
-  if(!$('assistantMessages').children.length)addAssistantMessage('Welcome back. Ask me about today’s stock, inventory value, supplier performance, or reorder risks.');
-  setTimeout(()=>$('assistantInput').focus(),80);
-}
-function askAssistant(question){
-  const prompt=question.trim();if(!prompt)return;
-  addAssistantMessage(prompt,'user');
-  setTimeout(()=>addAssistantMessage(assistantReply(prompt)),180);
-}
-$('assistantToggle').onclick=openAssistant;
-$('assistantClose').onclick=()=>{$('assistantPanel').classList.remove('open');$('assistantPanel').hidden=true};
-$('assistantForm').addEventListener('submit',event=>{event.preventDefault();askAssistant($('assistantInput').value);$('assistantInput').value=''});
-document.addEventListener('click',event=>{const suggestion=event.target.closest('[data-assistant-question]');if(suggestion)askAssistant(suggestion.dataset.assistantQuestion)});
 document.addEventListener('click',event=>{const region=event.target.closest('[data-region-id]');if(region)selectDistributionRegion(region.dataset.regionId);});
 document.addEventListener('keydown',event=>{const region=event.target.closest?.('.earth-node');if(region&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectDistributionRegion(region.dataset.regionId);}});

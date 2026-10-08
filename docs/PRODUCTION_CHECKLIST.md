@@ -1,10 +1,10 @@
 # InvenTrack production checklist
 
-InvenTrack 3.0.4 supports real single-organization inventory operations on Windows and through its local Node.js web server. The selected scope is local PC only, with no new public hosting. Passing automated tests is not a guarantee of deployment-specific readiness. See [the 3.0.3 verification report](../reports/RELEASE-3.0.3.md) for prior lifecycle evidence and [the 3.0.4 report](../reports/RELEASE-3.0.4.md) for the latest changes and checks.
+InvenTrack 3.0.5 supports real single-organization inventory operations on Windows and through its local Node.js web server. The scope is local PC only. Passing automated tests is not a guarantee of deployment-specific readiness. See [the 3.0.3 verification report](../reports/RELEASE-3.0.3.md) and [the 3.0.4 report](../reports/RELEASE-3.0.4.md) for prior lifecycle evidence, and [the 3.0.5 report](../reports/RELEASE-3.0.5.md) for the current cleanup checks.
 
 ## Already ready
 
-- Responsive dashboard with products, suppliers, shipments, analytics, assistant, audit log, and interactive WebGL Earth.
+- Responsive dashboard with products, suppliers, shipments, analytics, audit log, and interactive WebGL Earth.
 - Node.js HTTP API with SQLite persistence, validation, transactions, revision conflict protection, dedicated stock movements and purchase orders, and a health endpoint.
 - Mandatory scrypt-backed login, HTTP-only sessions, server-side role checks, organization-scoped records, login throttling, and administrator-managed accounts.
 - Visitor pulse endpoint with daily de-duplication and no IP-address storage.

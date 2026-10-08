@@ -1,13 +1,13 @@
 # InvenTrack Windows downloads
 
-Version: 3.0.4. Platform: Windows x64. The desktop runtime is included; Node.js is only needed for source development or the standalone web server.
+Version: 3.0.5. Platform: Windows x64. The desktop runtime is included; Node.js is only needed for source development or the standalone web server.
 
 ## Download
 
-- [Installer: InvenTrack-3.0.4-Setup.exe](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.4/InvenTrack-3.0.4-Setup.exe)
-- [Portable: InvenTrack-win32-x64-3.0.4.zip](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.4/InvenTrack-win32-x64-3.0.4.zip)
-- [Download checksums](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.4/SHA256SUMS.txt), also recorded in [SHA256SUMS.txt](SHA256SUMS.txt)
-- [Release page](https://github.com/sgshiv001/inventrack-inventory-management/releases/tag/v3.0.4)
+- [Installer: InvenTrack-3.0.5-Setup.exe](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-3.0.5-Setup.exe)
+- [Portable: InvenTrack-win32-x64-3.0.5.zip](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-win32-x64-3.0.5.zip)
+- [Download checksums](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/SHA256SUMS.txt), also recorded in [SHA256SUMS.txt](SHA256SUMS.txt)
+- [Release page](https://github.com/sgshiv001/inventrack-inventory-management/releases/tag/v3.0.5)
 
 The executables are distributed as GitHub Release assets because their sizes exceed GitHub's ordinary Git file limit. This folder contains the download links and integrity information, not an incomplete standalone launcher executable. **Code > Download ZIP** downloads source code, not the packaged Windows app.
 
@@ -19,14 +19,14 @@ The executables are distributed as GitHub Release assets because their sizes exc
 4. New workspaces are empty. Add a supplier and product through the normal forms or import your own CSV, then demonstrate stock movements, the ledger, reorder planning, and CSV export. No demonstration records are preloaded.
 5. Keep the launcher open while using browser mode. It runs the local server on this PC only. Use **Back up workspace** before relying on the app for important records.
 
-These builds are unsigned. Windows may warn about an unverified publisher; no code-signing identity or clean-machine compatibility claim is made. Installer and portable UI checks on the development PC are documented in the [verification report](../../reports/RELEASE-3.0.4.md). Physical camera barcode decoding and clean-machine behavior remain unverified. Recorded shipment routes are manual records, not live carrier tracking.
+These builds are unsigned. Windows may warn about an unverified publisher; no code-signing identity or clean-machine compatibility claim is made. Current build and package checks are documented in the [verification report](../../reports/RELEASE-3.0.5.md); earlier installer and portable UI checks remain historical, not fresh 3.0.5 UI tests. Physical camera barcode decoding and clean-machine behavior remain unverified. Recorded shipment routes are manual records, not live carrier tracking.
 
 ## Integrity
 
-The Windows binaries were built from application source commit `5f9d699461dade78338ff421198640f088addf2d`. Later documentation-only commits add these download instructions without changing that application runtime.
+The Windows binaries correspond to application version 3.0.5 and the `v3.0.5` release tag. Later documentation-only commits may update verification details without changing that application runtime.
 
 Use PowerShell to calculate the downloaded file's hash, then compare it with [SHA256SUMS.txt](SHA256SUMS.txt):
 
 ```powershell
-Get-FileHash -LiteralPath '.\InvenTrack-3.0.4-Setup.exe' -Algorithm SHA256
+Get-FileHash -LiteralPath '.\InvenTrack-3.0.5-Setup.exe' -Algorithm SHA256
 ```

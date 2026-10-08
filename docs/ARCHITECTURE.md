@@ -20,7 +20,7 @@ flowchart LR
   Browser -->|display preferences only| Local[(localStorage)]
 ```
 
-The browser owns the interactive workspace and renders the dashboard, inventory catalogue, reorder plan, analytics globe, logistics center, and assistant. The Node.js server provides a same-origin JSON API and serves only the approved public files. SQLite is the source of truth for shared inventory data.
+The browser owns the interactive workspace and renders the dashboard, inventory catalogue, reorder plan, analytics globe, and logistics center. The Node.js server provides a same-origin JSON API and serves only the approved public files. SQLite is the source of truth for shared inventory data.
 
 ## Request and save flow
 
@@ -151,9 +151,8 @@ erDiagram
 | Suppliers | Partner records and contact links |
 | Shipping & tracking | Shipment KPIs, route view, event timeline, ETA, and status progression |
 | Admin insights | Recorded delivery globe, declared shipment value, supplier contribution, stock risk, visitor pulse, and team accounts |
-| Assistant | Local, data-aware answers without sending inventory data to an external AI service |
 
-## Visual intelligence layer
+## Visual analytics layer
 
 - The distribution view renders an actual WebGL sphere mesh with a local equirectangular Earth texture, depth-tested lighting, pointer rotation/tilt, scroll zoom, and reset controls. It does not depend on a flat globe image or a third-party rendering library.
 - A transparent SVG layer keeps country labels, recorded delivery markers, curved shipment routes, route arrows, status colours, and accessible destination selection crisp above the sphere.

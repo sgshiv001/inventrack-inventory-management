@@ -1,5 +1,7 @@
 # InvenTrack
 
+A project by [Shivanshu Gupta](https://github.com/sgshiv001).
+
 InvenTrack is an inventory workspace for small retailers, wholesalers, and distributors. It runs as a Windows application or a Node.js web application. The Windows launcher lets you open the same local workspace in its dedicated desktop window or your default browser.
 
 Products, suppliers, stock movements, purchase orders, receipts, shipments, accounts, and sessions are stored in SQLite. New workspaces start empty. No sample inventory, fabricated activity, or reset button is included in the operational application.
@@ -8,10 +10,10 @@ Products, suppliers, stock movements, purchase orders, receipts, shipments, acco
 
 The packaged Windows app includes its runtime; you do not need Node.js to run it.
 
-- [Download the Windows installer (.exe)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.4/InvenTrack-3.0.4-Setup.exe): install, then open **InvenTrack** from the Start menu.
-- [Download the portable Windows app (.zip)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.4/InvenTrack-win32-x64-3.0.4.zip): extract the entire ZIP, then run `InvenTrack.exe` inside the extracted folder. Keep its support files together.
+- [Download the Windows installer (.exe)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-3.0.5-Setup.exe): install, then open **InvenTrack** from the Start menu.
+- [Download the portable Windows app (.zip)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-win32-x64-3.0.5.zip): extract the entire ZIP, then run `InvenTrack.exe` inside the extracted folder. Keep its support files together.
 
-Both builds are unsigned, start with your own workspace, and offer **Windows app** or **Web browser** mode. First-time setup requires an organization, administrator email, and password of at least 12 characters. See [Windows download and demonstration instructions](downloads/windows/README.md) and the [release verification report](reports/RELEASE-3.0.4.md) for checks and remaining limitations.
+Both builds are unsigned, start with your own workspace, and offer **Windows app** or **Web browser** mode. First-time setup requires an organization, administrator email, and password of at least 12 characters. See [Windows download and demonstration instructions](downloads/windows/README.md) and the [release verification report](reports/RELEASE-3.0.5.md) for checks and remaining limitations.
 
 ## Run or build from source on Windows
 

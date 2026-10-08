@@ -54,6 +54,20 @@ test('Windows installer directory is separate from inventory data',()=>{
   assert.equal(installer.config.name,'inventrack_desktop');
   assert.notEqual(installer.config.name.toLowerCase(),'inventrack');
 });
+
+test('operations workspace has no retired chat controls or handlers',()=>{
+  for(const file of ['index.html','app.js','styles.css','workspace.css']){
+    assert.doesNotMatch(readFileSync(path.join(root,file),'utf8'),/assistant(?:-|Reply|Toggle|Panel|Form|Messages|Input)|data-assistant-question/i);
+  }
+});
+
+test('release contains only the normal test workflow and no hosting manifest',()=>{
+  const {readdirSync}=require('node:fs');
+  assert.deepEqual(readdirSync(path.join(root,'.github','workflows')),['test.yml']);
+  for(const directory of readdirSync(root,{withFileTypes:true}).filter(entry=>entry.isDirectory()&&entry.name.startsWith('.')&&!['.git','.github','.vscode'].includes(entry.name))){
+    assert.equal(existsSync(path.join(root,directory.name,'hosting.json')),false);
+  }
+});
 test('Windows-compatible barcode decoder is locally bundled',()=>{
   const file='vendor/zxing-browser.min.js';
   assert.deepEqual(readFileSync(path.join(root,file)),readFileSync(path.join(root,'node_modules/@zxing/browser/umd/zxing-browser.min.js')));

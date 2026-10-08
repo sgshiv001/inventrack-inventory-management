@@ -1,9 +1,12 @@
 {
   "name": "inventrack",
   "productName": "InvenTrack",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "private": true,
-  "author": "InvenTrack",
+  "author": {
+    "name": "Shivanshu Gupta",
+    "url": "https://github.com/sgshiv001"
+  },
   "description": "InvenTrack inventory management for Windows and the web.",
   "main": "desktop/main.cjs",
   "scripts": {

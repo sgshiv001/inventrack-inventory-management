@@ -1,6 +1,6 @@
 # Product walkthrough
 
-InvenTrack 3.0.4 is an operational single-organization workspace. New databases contain no sample products, partners, or shipments. The optional product-model viewer has been removed; the recorded-delivery globe remains. The selected configuration is local PC only, with Windows and browser modes and no new public hosting.
+InvenTrack 3.0.5 is an operational single-organization workspace maintained by [Shivanshu Gupta](https://github.com/sgshiv001). New databases contain no sample products, partners, or shipments. The optional product-model viewer has been removed; the recorded-delivery globe remains. The configuration is local PC only, with Windows and browser modes and no public demo link.
 
 ## Intended users
 

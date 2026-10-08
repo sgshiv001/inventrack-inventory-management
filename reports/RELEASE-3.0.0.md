@@ -1,5 +1,7 @@
 # InvenTrack 3.0.0 completion report
 
+Historical screenshots of the retired interface were removed in 3.0.5. These results record the earlier test run, not current-version UI verification.
+
 Historical report: superseded by [3.0.3](RELEASE-3.0.3.md). The product viewer was removed in 3.0.1; 3.0.2 also separates the installer from data storage. Do not install the earlier builds linked below. Their screenshot and results describe the earlier release, not the current application.
 
 Date: 1 October 2026 · Windows x64 release
@@ -62,11 +64,10 @@ Both the portable archive and the installer `.nupkg` payload contain the verifie
 
 The browser and Windows UI smoke checks preceded the final minor wording/package-exclusion changes. Final sources and packaged archive contents were checked separately; the whole final GUI was not re-tested after those changes. Automated fixtures are kept under `tests/` and excluded from the application package; they are not operational demo data.
 
-### Model-viewer evidence
+### Historical model-viewer verification
 
-This screenshot uses a disposable verification model and temporary inventory, not customer records or a model shipped as sample inventory.
+The earlier verification used a disposable model and temporary inventory, not customer records or a model shipped as sample inventory. Its retired-interface screenshot is no longer included.
 
-![GLB model rendering during verification](C:/Users/shivu/OneDrive/Documents/GitHub/inventrack-inventory-management/reports/product-model-verification.jpg)
 
 ## Data protection and changes
 
