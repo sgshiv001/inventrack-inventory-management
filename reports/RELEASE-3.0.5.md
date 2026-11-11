@@ -35,6 +35,20 @@ The earlier release reports remain historical evidence, not fresh 3.0.5 UI tests
 | `InvenTrack-win32-x64-3.0.5.zip` | 167859874 | `76948B8811505925F2F064BBDECDDD493327147F8FA9A5520DA7986FBDDD5FE8` |
 | `app.asar` | 20868391 | `BEC66260AF46E546F076B722B442A7A83A6EF6C3DA2D31187C2F8E9F229A0A15` |
 
+## Local Windows rebuild on 11 November 2026
+
+Built Windows x64 from commit `ced1e39` with `npm run desktop:make -- --arch=x64`. The source diff from `v3.0.5` contains only release report edits.
+
+- `npm test` passed all 42 tests and the backend and authentication integration checks.
+- `node tests/package.cjs` verified the packaged runtime against the source. The portable ZIP contains `InvenTrack.exe` and `resources/app.asar`.
+
+The rebuilt `app.asar` matches the SHA-256 in the original build table. Use the following hashes for the local files and the [published checksums](../downloads/windows/SHA256SUMS.txt) for the GitHub Release downloads.
+
+| Local file | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `InvenTrack-3.0.5 Setup.exe` | 162816000 | `358134AD639B573AAF56B512FFAFE45EFA8EAFE89141BD0E199A51B331D1138F` |
+| `InvenTrack-win32-x64-3.0.5.zip` | 167859874 | `753DDCA9EC703410ABDAB052EBA278BB3F9793FF4D13C0500D4E50DCEF59C869` |
+
 ## Boundaries
 
 The app remains local-only and starts with an empty workspace. Existing databases were not modified. Builds remain unsigned. Clean-machine compatibility and physical camera barcode decoding are not newly verified. Shipment routes are manual records, not live carrier tracking. Git history and previous release tags have not been rewritten.
