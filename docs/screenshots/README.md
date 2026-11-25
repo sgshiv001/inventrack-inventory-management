@@ -1,7 +1,13 @@
 # Interface previews
 
-These lightweight SVG previews are included so the GitHub project page remains readable without requiring a live server. They mirror the current InvenTrack dashboard and Shipping & Tracking Center using the same midnight-indigo visual system.
+These screenshots show the InvenTrack 3.1.0 interface. Accounts and inventory shown here belong to disposable verification workspaces.
 
-![Executive dashboard preview](dashboard.svg)
+![Cinematic welcome page](welcome.png)
 
-![Shipping and tracking preview](logistics.svg)
+![Sign-in page](signin.png)
+
+![Personalized inventory dashboard](dashboard.png)
+
+![Personal account and appearance preferences](account.png)
+
+The earlier [dashboard illustration](dashboard.svg) and [shipping illustration](logistics.svg) document the preceding interface.

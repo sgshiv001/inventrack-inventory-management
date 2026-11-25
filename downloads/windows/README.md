@@ -1,32 +1,32 @@
 # InvenTrack Windows downloads
 
-Version: 3.0.5. Platform: Windows x64. The desktop runtime is included; Node.js is only needed for source development or the standalone web server.
+InvenTrack 3.1.0 for Windows x64 includes its desktop runtime. Node.js is needed for source development and the standalone web server.
 
 ## Download
 
-- [Installer: InvenTrack-3.0.5-Setup.exe](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-3.0.5-Setup.exe)
-- [Portable: InvenTrack-win32-x64-3.0.5.zip](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-win32-x64-3.0.5.zip)
-- [Download checksums](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/SHA256SUMS.txt), also recorded in [SHA256SUMS.txt](SHA256SUMS.txt)
-- [Release page](https://github.com/sgshiv001/inventrack-inventory-management/releases/tag/v3.0.5)
+- [Windows installer](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.1.0/InvenTrack-3.1.0-Setup.exe)
+- [Portable ZIP](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.1.0/InvenTrack-win32-x64-3.1.0.zip)
+- [Download checksums](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.1.0/SHA256SUMS.txt), also recorded in [SHA256SUMS.txt](SHA256SUMS.txt)
+- [Release page](https://github.com/sgshiv001/inventrack-inventory-management/releases/tag/v3.1.0)
 
 The executables are distributed as GitHub Release assets because their sizes exceed GitHub's ordinary Git file limit. This folder contains the download links and integrity information, not an incomplete standalone launcher executable. **Code > Download ZIP** downloads source code, not the packaged Windows app.
 
 ## Run and demonstrate
 
 1. Install using the installer, then open **InvenTrack** from the Start menu. Alternatively, extract the entire portable ZIP to a writable local folder and run `InvenTrack.exe` there; do not copy only the executable.
-2. On first use, enter your organization, administrator email, and a password of at least 12 characters. Keep these credentials safe; password recovery is not included.
-3. Choose **Windows app** for the dedicated application window, or **Web browser** for the same local workspace in your browser. Sign in with the account you created.
+2. Choose **Windows app** for the dedicated window or **Web browser** for your browser. Both modes open the welcome page.
+3. Sign in to an existing account or choose **Create your workspace**. Enter your name, email, a password of at least 12 characters, workspace name, and retail, wholesale, or operations business type. New workspace owners have administrator access. Team members use administrator-created accounts with assigned roles. Keep your credentials safe.
 4. New workspaces are empty. Add a supplier and product through the normal forms or import your own CSV, then demonstrate stock movements, the ledger, reorder planning, and CSV export. No demonstration records are preloaded.
 5. Keep the launcher open while using browser mode. It runs the local server on this PC only. Use **Back up workspace** before relying on the app for important records.
 
-These builds are unsigned. Windows may warn about an unverified publisher; no code-signing identity or clean-machine compatibility claim is made. Current build and package checks are documented in the [verification report](../../reports/RELEASE-3.0.5.md); earlier installer and portable UI checks remain historical, not fresh 3.0.5 UI tests. Physical camera barcode decoding and clean-machine behavior remain unverified. Recorded shipment routes are manual records, not live carrier tracking.
+The builds are unsigned. Windows may show a publisher warning. Automated checks, responsive UI checks, and the packaged launcher flow are recorded in the [3.1.0 verification report](../../reports/RELEASE-3.1.0.md). Clean-account installation, upgrade, uninstall, and physical camera decoding still need target-machine verification. Shipment routes reflect manually entered records.
 
 ## Integrity
 
-The Windows binaries correspond to application version 3.0.5 and the `v3.0.5` release tag. Later documentation-only commits may update verification details without changing that application runtime.
+The Windows binaries correspond to application version 3.1.0 and the `v3.1.0` release tag. Published checksums cover the installer and portable ZIP.
 
 Use PowerShell to calculate the downloaded file's hash, then compare it with [SHA256SUMS.txt](SHA256SUMS.txt):
 
 ```powershell
-Get-FileHash -LiteralPath '.\InvenTrack-3.0.5-Setup.exe' -Algorithm SHA256
+Get-FileHash -LiteralPath '.\InvenTrack-3.1.0-Setup.exe' -Algorithm SHA256
 ```

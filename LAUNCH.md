@@ -2,7 +2,7 @@
 
 ## Windows desktop and local browser
 
-Run `npm install` and `npm run desktop` to develop locally. The launcher creates an empty workspace under Electron's per-user app data folder and asks for an organization, administrator email, and 12-character-or-longer password. **Windows app** opens a dedicated window; **Web browser** opens the same authenticated local server in your default browser. Keep the launcher running while the browser is in use.
+Run `npm install` and `npm run desktop` to develop locally. **Windows app** opens a dedicated window and **Web browser** opens the same local server in your default browser. Both modes show the welcome page, where you can sign in or create an account and workspace. New workspace owners receive administrator access and can create team accounts from Admin insights. The database is under Electron's per-user app data folder. Keep the launcher running while the browser is in use.
 
 Build the installer and portable ZIP with `npm run desktop:make`. They are generated in `out/make/` and are not committed to Git. The installer is not code-signed by this project. Before distributing, test install, launch, upgrade, uninstall, data retention, camera scanning, and ZIP extraction on a clean Windows account. Code signing is recommended for a trusted Windows release.
 
@@ -12,7 +12,7 @@ The default Windows launcher database is separate from the standalone web server
 
 ## Standalone web server
 
-Install Node.js 24 and dependencies. Copy `.env.example` to `.env`, set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ORGANIZATION_NAME`, then run `node --env-file=.env server.js`. The first start creates the administrator and an empty organization. Later starts use the stored password hash; do not keep the bootstrap password in your deployment environment after setup if not needed. Authentication cannot be disabled in this release.
+Install Node.js 24 and dependencies, then run `npm start`. Create an account and workspace from the welcome page. Each new account created there owns a separate workspace. To bootstrap an administrator through the environment, copy `.env.example` to `.env`, set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ORGANIZATION_NAME`, then run `node --env-file=.env server.js`. Later starts use the stored password hash. Remove the bootstrap password from your environment after setup. Inventory routes require authentication.
 
 Set `DB_PATH` to an absolute location on persistent storage. The default server path is `%LOCALAPPDATA%\InvenTrack\inventrack.db` on Windows or `$XDG_DATA_HOME/InvenTrack/inventrack.db` (usually `~/.local/share/InvenTrack/inventrack.db`) on Linux/macOS. Since 3.0.4 the server binds `127.0.0.1` by default for use only on this PC. The Windows launcher also always binds loopback. Do not set `HOST=0.0.0.0`, configure port forwarding, or create a public tunnel for local-only use. An existing `.env` file can override the default; set its `HOST=127.0.0.1` too. The health check is `/api/health`.
 

@@ -99,10 +99,41 @@ const post = (path, data, headers = {}) => fetch(`${base}${path}`, { method: 'PO
     for(let i=0;i<8;i++)assert.equal((await post('/api/auth/login',{email:'rate-limit@example.com',password:'invalid-password'})).status,401);
     assert.equal((await post('/api/auth/login',{email:'rate-limit@example.com',password:'invalid-password'})).status,429);
 
+    const registration = { displayName: 'Asha Mehta', organizationName: 'Asha Retail', workspaceType: 'retail', email: 'asha@example.test', password: 'a different secure password', organizationId: 'org_demo', role: 'wholesaler' };
+    assert.equal((await post('/api/auth/register', registration, { Origin: 'https://untrusted.example' })).status, 403);
+    assert.equal((await post('/api/auth/register', { ...registration, workspaceType: 'unsupported' })).status, 400);
+    const registered = await post('/api/auth/register', registration);
+    assert.equal(registered.status, 201);
+    const owner = (await registered.json()).user;
+    assert.equal(owner.displayName, 'Asha Mehta');
+    assert.equal(owner.role, 'admin');
+    assert.equal(owner.workspaceType, 'retail');
+    assert.notEqual(owner.organizationId, loginBody.user.organizationId);
+    const newCookie = { Cookie: registered.headers.get('set-cookie').split(';')[0] };
+    const newInventory = await (await fetch(`${base}/api/inventory`, { headers: newCookie })).json();
+    assert.equal(newInventory.products.length, 0);
+    newInventory.products.push({ id: 'new_workspace_product', name: 'My product', sku: 'ISOLATION-001', category: 'General', quantity: 0, reorder: 2, cost: 5, price: 8, supplierId: '' });
+    const newSave = await fetch(`${base}/api/inventory`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...newCookie }, body: JSON.stringify(newInventory) });
+    assert.equal(newSave.status, 200, 'separate workspaces can use the same SKU');
+    assert.equal((await (await fetch(`${base}/api/inventory`, { headers: cookieHeader })).json()).products[0].name, 'Organization-isolation fixture');
+    const beforeDuplicate = new DatabaseSync(join(folder, 'auth.db'));
+    const organizationCount = beforeDuplicate.prepare('SELECT COUNT(*) AS count FROM organizations').get().count;
+    beforeDuplicate.close();
+    assert.equal((await post('/api/auth/register', { ...registration, email: ' ASHA@EXAMPLE.TEST ' })).status, 400);
+    const afterDuplicate = new DatabaseSync(join(folder, 'auth.db'));
+    assert.equal(afterDuplicate.prepare('SELECT COUNT(*) AS count FROM organizations').get().count, organizationCount, 'failed registration leaves no extra organization');
+    assert.deepEqual(afterDuplicate.prepare('PRAGMA foreign_key_check').all(), []);
+    afterDuplicate.close();
+    const personalLogin = await post('/api/auth/login', { email: registration.email, password: registration.password });
+    assert.equal(personalLogin.status, 200);
+    assert.equal((await personalLogin.json()).user.displayName, registration.displayName);
+    for (let i = 0; i < 7; i++) assert.equal((await post('/api/auth/register', { ...registration, workspaceType: 'unsupported' })).status, 400);
+    assert.equal((await post('/api/auth/register', registration)).status, 429);
+
     const logout = await post('/api/auth/logout', {}, cookieHeader);
     assert.equal(logout.status, 200);
     assert.equal((await fetch(`${base}/api/inventory`, { headers: cookieHeader })).status, 401);
-    console.log('PASS: authentication, password verification, organization isolation, roles, account administration, login throttling, and logout.');
+    console.log('PASS: authentication, registration, organization isolation, shared SKUs, account administration, request throttling, and logout.');
   } finally {
     await stop();
     rmSync(folder, { recursive: true, force: true });

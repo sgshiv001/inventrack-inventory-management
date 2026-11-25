@@ -1,20 +1,21 @@
 # InvenTrack production checklist
 
-InvenTrack 3.0.5 supports real single-organization inventory operations on Windows and through its local Node.js web server. The scope is local PC only. Passing automated tests is not a guarantee of deployment-specific readiness. See [the 3.0.3 verification report](../reports/RELEASE-3.0.3.md) and [the 3.0.4 report](../reports/RELEASE-3.0.4.md) for prior lifecycle evidence, and [the 3.0.5 report](../reports/RELEASE-3.0.5.md) for the current cleanup checks.
+InvenTrack 3.1.0 supports local inventory operations with separate organization-scoped workspaces on Windows and through its Node.js web server. The [3.1.0 verification report](../reports/RELEASE-3.1.0.md) records the current checks and target-machine verification still needed. Earlier reports retain the results from those releases.
 
 ## Already ready
 
 - Responsive dashboard with products, suppliers, shipments, analytics, audit log, and interactive WebGL Earth.
 - Node.js HTTP API with SQLite persistence, validation, transactions, revision conflict protection, dedicated stock movements and purchase orders, and a health endpoint.
 - Mandatory scrypt-backed login, HTTP-only sessions, server-side role checks, organization-scoped records, login throttling, and administrator-managed accounts.
+- Welcome-page workspace creation, retail/wholesale/operations business types, role-specific dashboards, and personal account appearance preferences.
 - Visitor pulse endpoint with daily de-duplication and no IP-address storage.
 - Windows launcher with desktop/browser choice, installer and portable ZIP builds, and workspace backups that preserve legacy attachments. The optional product-model viewer is removed. New workspaces start empty; static frontend hosting requires the API.
 
 ## Required before a paid pilot
 
 1. **Production database:** run the API on a host with persistent storage, or migrate the adapter to managed PostgreSQL. Enable daily backups and test a restore.
-2. **Account administration:** built-in administrator-created accounts support a protected single-company deployment. Add recovery, invitations, and managed identity before self-service onboarding.
-3. **Organization onboarding:** provide a tested company provisioning and membership flow; keep ownership checks on every new endpoint.
+2. **Account administration:** workspace owners create team accounts and assign roles. Customer deployments also need account recovery, invitations, and managed identity appropriate to their access model.
+3. **Organization onboarding:** test workspace provisioning and administrator-managed membership with the target users. Preserve organization boundaries on every new endpoint.
 4. **API deployment:** deploy `server.js` with `HOST=0.0.0.0`, a persistent `DB_PATH` when using SQLite, and `CORS_ORIGIN` only when the frontend is on another origin. Keep `runtime-config.js` pointed at the API origin.
 5. **Domain and HTTPS:** attach a domain in the hosting provider, configure DNS, and confirm HTTPS before sharing the app with customers.
 6. **Privacy and support:** publish a privacy notice, retention policy, support email, export/delete process, and incident contact. The visitor counter should remain opt-in or be disclosed according to the chosen jurisdiction.

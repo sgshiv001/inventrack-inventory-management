@@ -21,18 +21,20 @@ function renderAuthState(){
   const button=$('authButton');
   if(button){button.hidden=!authState.required;button.textContent=authState.authenticated?'Sign out':'Sign in';button.title=authState.authenticated?`Sign out ${authState.user.email}`:'Sign in to the organization workspace';}
   if(authState.authenticated&&authState.user?.role&&typeof roleDetails!=='undefined'){
-    workspace.role=authState.user.role;persistWorkspace();
+    workspace.role=authState.user.role;
     if($('roleChip'))$('roleChip').textContent=`${roleDetails[authState.user.role].label} workspace`;
   }else if($('roleChip'))$('roleChip').textContent='Sign in required';
   const writeControls=['importBtn','quickAddBtn','addProductBtn','addMovementBtn','addSupplierBtn','addShipmentBtn','advanceShipmentBtn','createPurchaseOrdersBtn'];
   for(const id of writeControls){const el=$(id);if(el)el.hidden=!authCanWrite();}
   if($('userManagement'))$('userManagement').hidden=authState.user?.role!=='admin';
+  if(typeof renderEntranceState==='function')renderEntranceState();
 }
 function openAuthDialog(message=''){
-  const dialog=$('authDialog');if(!dialog)return;
   $('authError').textContent=message;
-  if(!dialog.open)dialog.showModal();
-  setTimeout(()=>$('authEmail')?.focus(),60);
+  if(typeof showAuthScreen==='function'){
+    showAuthScreen(message?'login':$('entrance').dataset.screen);
+    if(message)$('authEmail')?.focus();
+  }
 }
 async function loadAuthSession(){
   const response=await api('/api/auth/session',{signal:AbortSignal.timeout(5000)});
@@ -45,13 +47,16 @@ async function submitLogin(event){
   try{
     const response=await api('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('authEmail').value.trim(),password:$('authPassword').value}),signal:AbortSignal.timeout(10000)});
     const result=await response.json();if(!response.ok)throw new Error(result.error||'Sign-in failed.');
-    authState={required:true,authenticated:true,user:result.user};renderAuthState();$('authPassword').value='';$('authDialog').close();await loadFromServer();toast(`Signed in as ${result.user.email}.`);
+    authState={required:true,authenticated:true,user:result.user};renderAuthState();$('authPassword').value='';$('signupForm').reset();setSignupStep(1);showView('dashboard');await loadFromServer();toast(`Welcome back, ${result.user.displayName||result.user.email.split('@')[0]}.`);
   }catch(error){$('authError').textContent=error.message||'Sign-in failed.';}
   finally{button.disabled=false;}
 }
 async function signOut(){
-  try{await api('/api/auth/logout',{method:'POST',signal:AbortSignal.timeout(5000)});}catch{}
-  clearSessionInventory();openAuthDialog('You have been signed out.');
+  try{
+    const response=await api('/api/auth/logout',{method:'POST',signal:AbortSignal.timeout(5000)});
+    if(!response.ok)throw new Error('Could not sign out. Please try again.');
+    clearSessionInventory();$('authPassword').value='';showAuthScreen('welcome');window.scrollTo({top:0});
+  }catch(error){toast(error.message||'Could not sign out. Please try again.');}
 }
 
 function emptyInventory(){return {revision:0,suppliers:[],products:[],movements:[],regions:[],shipments:[],purchaseOrders:[]};}
@@ -99,10 +104,11 @@ async function loadFromServer(){
     confirmedInventory=structuredClone(db);
     databaseReady=true;connection('Database connected','ready');
     renderAll();renderEnhanced();
+    showView(viewMeta[location.hash.slice(1)]?location.hash.slice(1):'dashboard');
     const releaseResponse=await api('/api/releases');
     if(releaseResponse.ok){releases=await releaseResponse.json();renderLogbook();}
     if(authState.user?.role==='admin')refreshTeamUsers().catch(error=>toast(error.message));
-  }catch(error){databaseReady=false;db=emptyInventory();renderAll();connection('Database unavailable','error');toast(error.message||'Could not connect to the database.');}
+  }catch(error){databaseReady=false;db=emptyInventory();renderAll();connection('Database unavailable','error');$('authError').textContent='We could not connect to your workspace. Check that the local server is running and try signing in.';toast(error.message||'Could not connect to the database.');}
 }
 document.addEventListener('submit',event=>{if((!databaseReady||writeBusy) && ['productForm','movementForm','supplierForm','shipmentForm'].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();toast(writeBusy?'Wait for the current save to finish.':'Connect the database before editing inventory.');}},true);
 document.addEventListener('click',event=>{
@@ -142,18 +148,21 @@ async function importProductsFromCsv(text){
 }
 
 const viewMeta={dashboard:['Dashboard','A clear view of your inventory today.'],products:['Products','Manage your product catalogue and stock levels.'],reorder:['Reorder Plan','Prioritize purchases before stock runs out.'],movements:['Stock Movements','Track every addition, sale, and adjustment.'],suppliers:['Suppliers','Manage the businesses that supply your stock.'],logistics:['Shipping & tracking','Follow routes, delivery commitments, and shipment activity.'],analytics:['Admin insights','Company, supplier, and stock intelligence for better decisions.'],logbook:['Log book','Your database-backed stock movement history.'],about:['About InvenTrack','Inventory operations for distributors, wholesalers, and stock teams.']};
+viewMeta.profile=['My account','Your details. Your workspace. Your way.'];
 function showView(name){
+  if(!authState.authenticated||!viewMeta[name])return;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`${name}View`));
   document.querySelectorAll('.nav-link').forEach(n=>n.classList.toggle('active',n.dataset.view===name));
   $('pageTitle').textContent=viewMeta[name][0];$('pageSubtitle').textContent=viewMeta[name][1];
   $('sidebar').classList.remove('open');location.hash=name;
+  $('menuBtn').setAttribute('aria-expanded','false');
   if(name==='logbook'&&typeof renderLogbook==='function')renderLogbook();
   if(name==='logistics'&&typeof renderLogistics==='function')renderLogistics();
 }
 
 function renderDashboard(){
   const units=db.products.reduce((n,p)=>n+p.quantity,0),low=db.products.filter(p=>p.quantity<=p.reorder),value=db.products.reduce((n,p)=>n+p.quantity*p.cost,0),margin=db.products.reduce((n,p)=>n+p.quantity*(p.price-p.cost),0),market=value+margin,cats=[...new Set(db.products.map(p=>p.category))];
-  $('onboardingPanel').hidden=Boolean(db.products.length||db.suppliers.length);
+  $('onboardingPanel').hidden=!authCanWrite()||Boolean(db.products.length||db.suppliers.length);
   $('metricProducts').textContent=db.products.length;$('metricCategories').textContent=`${cats.length} ${cats.length===1?'category':'categories'}`;$('metricUnits').textContent=units.toLocaleString('en-IN');$('metricLow').textContent=low.length;$('metricValue').textContent=rupees.format(value);$('metricMargin').textContent=rupees.format(margin);$('metricMarket').textContent=rupees.format(market);
   const healthy=db.products.length-low.length,reorderBudget=low.reduce((n,p)=>n+suggestedReorderQty(p)*p.cost,0),supplierCounts=db.suppliers.map(s=>[s.name,db.products.filter(p=>p.supplierId===s.id).length]).sort((a,b)=>b[1]-a[1]);
   $('stockHealth').textContent=db.products.length?`${Math.round(healthy/db.products.length*100)}%`:'0%';$('reorderBudget').textContent=rupees.format(reorderBudget);$('topSupplier').textContent=supplierCounts[0]?.[1]?supplierCounts[0][0]:'--';
@@ -427,7 +436,20 @@ document.addEventListener('click',async e=>{
   if(selectShipment){selectedShipmentId=selectShipment.dataset.selectShipment;renderLogistics()}
   if(advance){advanceShipment(advance.dataset.advanceShipment)}
 });
-$('quickAddBtn').onclick=$('addProductBtn').onclick=()=>openProduct();$('addMovementBtn').onclick=()=>openMovement();$('addSupplierBtn').onclick=()=>openSupplier();$('addShipmentBtn').onclick=openShipment;$('advanceShipmentBtn').onclick=()=>advanceShipment($('advanceShipmentBtn').dataset.advanceShipment);$('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');$('productSearch').oninput=renderProducts;$('categoryFilter').onchange=renderProducts;$('stockFilter').onchange=renderProducts;$('shipmentSearch').oninput=renderLogistics;$('shipmentStatusFilter').onchange=renderLogistics;$('clearShipmentFilter').onclick=()=>{$('shipmentSearch').value='';$('shipmentStatusFilter').value='';renderLogistics()};
+$('quickAddBtn').onclick=$('addProductBtn').onclick=()=>openProduct();
+$('addMovementBtn').onclick=()=>openMovement();
+$('addSupplierBtn').onclick=()=>openSupplier();
+$('addShipmentBtn').onclick=openShipment;
+$('advanceShipmentBtn').onclick=()=>advanceShipment($('advanceShipmentBtn').dataset.advanceShipment);
+$('menuBtn').onclick=()=>{$('menuBtn').setAttribute('aria-expanded',String($('sidebar').classList.toggle('open')));};
+$('sidebarScrim').onclick=()=>{$('sidebar').classList.remove('open');$('menuBtn').setAttribute('aria-expanded','false');$('menuBtn').focus();};
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('sidebar').classList.contains('open'))$('sidebarScrim').click();});
+$('productSearch').oninput=renderProducts;
+$('categoryFilter').onchange=renderProducts;
+$('stockFilter').onchange=renderProducts;
+$('shipmentSearch').oninput=renderLogistics;
+$('shipmentStatusFilter').onchange=renderLogistics;
+$('clearShipmentFilter').onclick=()=>{$('shipmentSearch').value='';$('shipmentStatusFilter').value='';renderLogistics()};
 $('createPurchaseOrdersBtn').onclick=createPurchaseOrders;
 $('dashboardDate').textContent=new Intl.DateTimeFormat('en-IN',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
 $('dashboardSearchForm').addEventListener('submit',event=>{event.preventDefault();const query=$('dashboardSearch').value.trim();$('productSearch').value=query;showView('products');renderProducts();if(query)toast(`Showing products matching “${query}”.`)});
@@ -444,7 +466,7 @@ window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(view
    catalogue, movement, import, and export workflows remain backwards compatible. */
 const WORKSPACE_KEY='inventrack_workspace_v1';
 const roleDetails={
-  retailer:{label:'Retailer',description:'Focus on daily sales, stock levels, and fast-moving products.'},
+  retailer:{label:'Retailer',description:'Browse products, check availability, and follow stock activity.'},
   wholesaler:{label:'Wholesaler',description:'Coordinate suppliers, bulk orders, and replenishment planning.'},
   admin:{label:'Administrator',description:'Oversee operations, audit activity, and configure the workspace.'}
 };
@@ -452,7 +474,89 @@ let workspace=(()=>{try{return JSON.parse(localStorage.getItem(WORKSPACE_KEY))||
 workspace.role=roleDetails[workspace.role]?workspace.role:'';
 workspace.theme=workspace.theme==='dark'?'dark':'light';
 delete workspace.activity;
-function persistWorkspace(){localStorage.setItem(WORKSPACE_KEY,JSON.stringify(workspace))}
+function persistWorkspace(){try{localStorage.setItem(authState.user?`${WORKSPACE_KEY}_${authState.user.id}`:WORKSPACE_KEY,JSON.stringify(workspace))}catch{}}
+let activePreferenceUser='';
+let selectedPersona='retail';
+const personaDescriptions={retail:'Keep your shelves ready, find products quickly, and see what needs replenishing.',wholesale:'Bring suppliers, bulk orders, and stock movements together in one organized workspace.',operations:'Give your team a shared picture of inventory, deliveries, and the work ahead.'};
+function showAuthScreen(screen='welcome',focus=false){
+  const selected=['welcome','login','signup'].includes(screen)?screen:'welcome';
+  $('entrance').dataset.screen=selected;
+  $('welcomeContent').hidden=selected!=='welcome';
+  $('authLayout').hidden=selected==='welcome';
+  $('authForm').hidden=selected!=='login';
+  $('signupForm').hidden=selected!=='signup';
+  $('loginTab').setAttribute('aria-pressed',String(selected==='login'));
+  $('signupTab').setAttribute('aria-pressed',String(selected==='signup'));
+  $('authCard').setAttribute('aria-labelledby',selected==='signup'?'signupTitle':'authTitle');
+  if(focus){window.scrollTo({top:0});$(selected==='signup'?'signupTitle':selected==='login'?'authTitle':'welcomeTitle').focus({preventScroll:true});}
+}
+function setSignupStep(step){
+  const identity=step===1;
+  $('signupIdentity').disabled=!identity;$('signupIdentity').hidden=!identity;
+  $('signupWorkspace').disabled=identity;$('signupWorkspace').hidden=identity;
+  $('signupStepLabel').textContent=identity?'YOUR DETAILS · STEP 1 OF 2':'YOUR WORKSPACE · STEP 2 OF 2';
+  $('signupTitle').textContent=identity?'Make it yours.':'A space to grow.';
+  $('signupDescription').textContent=identity?'A little about you. Then, a space for your business.':'Give your workspace a name and make yourself at home.';
+  $('signupProgressEnd').classList.toggle('active',!identity);
+  $('signupError').textContent='';
+}
+function renderEntranceState(){
+  const signedIn=authState.authenticated;
+  $('workspaceShell').hidden=!signedIn;$('workspaceShell').inert=!signedIn;$('entrance').hidden=signedIn;
+  $('skipLink').href=signedIn?'#workspaceContent':'#entranceContent';
+  document.body.classList.toggle('signed-in',signedIn);
+  if(!signedIn){activePreferenceUser='';return;}
+  const user=authState.user;
+  if(activePreferenceUser!==user.id){
+    activePreferenceUser=user.id;
+    try{const saved=JSON.parse(localStorage.getItem(`${WORKSPACE_KEY}_${user.id}`)||'{}');workspace.theme=saved.theme==='dark'?'dark':'light';}catch{workspace.theme='light';}
+    applyTheme();
+  }
+  const name=user.displayName||user.email.split('@')[0].replace(/[._-]/g,' ');
+  const firstName=name.split(/\s+/)[0];
+  const role=user.role;
+  const priorities={admin:{focus:'Your operation, at a glance.',description:'Keep your team connected, your stock in focus, and your next move clear.',shortcuts:[['analytics','Team & insights'],['products','Your catalogue'],['logistics','Shipment overview']]},wholesaler:{focus:'Keep your next order moving.',description:'A clear view of your suppliers, stock movements, and replenishment priorities.',shortcuts:[['reorder','Plan replenishment'],['suppliers','Your suppliers'],['movements','Stock activity']]},retailer:{focus:'Find what you need. Know what is available.',description:'Explore your catalogue, check stock availability, and follow delivery records.',shortcuts:[['products','Browse products'],['logistics','Follow shipments'],['movements','View stock activity']]}};
+  const ownerPriorities={retail:{focus:'Keep your shelves ready for what is next.',description:'Your catalogue, stock availability, and replenishment priorities in one place.',shortcuts:[['products','Your catalogue'],['reorder','Plan replenishment'],['analytics','Team & insights']]},wholesale:{...priorities.wholesaler,shortcuts:[['reorder','Plan replenishment'],['suppliers','Your suppliers'],['analytics','Team & insights']]}};
+  const details=role==='admin'&&ownerPriorities[user.workspaceType]?ownerPriorities[user.workspaceType]:priorities[role]||priorities.retailer;
+  $('accountName').textContent=name;$('accountOrganization').textContent=user.organizationName;
+  $('accountRole').textContent=roleDetails[role]?.label||'Member';$('accountAvatar').textContent=initials(name);
+  $('personalGreeting').innerHTML=`Welcome back,<br><em>${escapeHtml(firstName)}.</em>`;
+  $('personalDescription').textContent=details.description;
+  $('personalFocus').textContent=details.focus;
+  $('personalRoleLabel').textContent=`${roleDetails[role]?.label||'Member'} · ${user.workspaceType||'operations'}`.toUpperCase();
+  $('personalShortcuts').innerHTML=details.shortcuts.map(([view,label])=>`<button type="button" class="btn secondary" data-go="${view}">${label}</button>`).join('');
+  $('profileAvatar').textContent=initials(name);$('profileName').textContent=name;$('profileSummary').textContent=roleDetails[role]?.description||'';
+  $('profileEmail').textContent=user.email;$('profileOrganization').textContent=user.organizationName;$('profileRole').textContent=roleDetails[role]?.label||'Member';
+  $('profileBusiness').textContent={retail:'Retail',wholesale:'Wholesale',operations:'Operations'}[user.workspaceType]||'Operations';
+  $('onboardingPanel').hidden=!authCanWrite()||Boolean(db.products.length||db.suppliers.length);
+}
+async function submitSignup(event){
+  event.preventDefault();
+  const button=$('signupSubmit');button.disabled=true;button.textContent='Creating your workspace…';$('signupError').textContent='';
+  try{
+    const response=await api('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({displayName:$('signupName').value.trim(),email:$('signupEmail').value.trim(),password:$('signupPassword').value,organizationName:$('signupOrganization').value.trim(),workspaceType:document.querySelector('input[name="workspaceType"]:checked').value}),signal:AbortSignal.timeout(15000)});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not create your workspace.');
+    authState={required:true,authenticated:true,user:result.user};renderAuthState();
+    $('signupForm').reset();setSignupStep(1);showView('dashboard');await loadFromServer();
+    toast(`Your workspace is ready, ${result.user.displayName}.`);
+  }catch(error){$('signupError').textContent=error.message||'Could not create your workspace. Please try again.';}
+  finally{button.disabled=false;button.textContent='Create my workspace';}
+}
+document.addEventListener('click',event=>{
+  const appearance=event.target.closest('[data-set-theme]');
+  if(appearance){workspace.theme=appearance.dataset.setTheme;persistWorkspace();applyTheme();}
+  const screen=event.target.closest('[data-auth-screen]');
+  if(screen){if(screen.dataset.authScreen==='signup')document.querySelector(`input[name="workspaceType"][value="${selectedPersona}"]`).checked=true;showAuthScreen(screen.dataset.authScreen,true);}
+  const toggle=event.target.closest('[data-toggle-password]');
+  if(toggle){const field=$(toggle.dataset.togglePassword),show=field.type==='password';field.type=show?'text':'password';toggle.textContent=show?'Hide':'Show';toggle.setAttribute('aria-label',show?'Hide password':'Show password');toggle.setAttribute('aria-pressed',String(show));}
+  const persona=event.target.closest('[data-persona]');
+  if(persona){selectedPersona=persona.dataset.persona;document.querySelectorAll('[data-persona]').forEach(button=>{const selected=button===persona;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});$('personaDescription').textContent=personaDescriptions[selectedPersona];}
+});
+$('signupNext').addEventListener('click',()=>{if(['signupName','signupEmail','signupPassword'].every(id=>$(id).reportValidity())){setSignupStep(2);$('signupOrganization').focus();}});
+$('signupIdentity').addEventListener('keydown',event=>{if(event.key==='Enter'&&event.target.tagName==='INPUT'){event.preventDefault();$('signupNext').click();}});
+$('signupBack').addEventListener('click',()=>{setSignupStep(1);$('signupName').focus();});
+$('signupPassword').addEventListener('input',()=>{const length=$('signupPassword').value.length;$('passwordHint').textContent=length>=12?'Password length looks good.':`Use 12 or more characters${length?` · ${12-length} more to go`:''}.`;$('passwordHint').classList.toggle('valid',length>=12);});
+$('signupForm').addEventListener('submit',submitSignup);
 function logActivity(){}
 const baseSave=save;
 save=function(){
@@ -471,6 +575,8 @@ function applyTheme(){
   document.documentElement.dataset.theme=workspace.theme;
   $('themeToggle').textContent=workspace.theme==='dark'?'☀':'☾';
   $('themeToggle').title=workspace.theme==='dark'?'Switch to light mode':'Switch to dark mode';
+  $('themeToggle').setAttribute('aria-label',$('themeToggle').title);
+  document.querySelectorAll('[data-set-theme]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.setTheme===workspace.theme)));
 }
 function notifications(){
   return db.products.filter(p=>p.quantity<=p.reorder).map(p=>({id:p.id,title:`${p.name} needs attention`,detail:p.quantity===0?'Out of stock':`${p.quantity} units left; reorder at ${p.reorder}.`}));
@@ -496,7 +602,7 @@ function renderEnhanced(){
   renderAuthState();
 }
 document.addEventListener('click',event=>{
-  if(event.target.closest('#roleChip'))toast(authState.authenticated?`${authState.user.email} · ${authState.user.role}`:'Sign in to see your account role.');
+  if(event.target.closest('#roleChip')&&authState.authenticated)showView('profile');
   if(event.target.closest('#themeToggle')){workspace.theme=workspace.theme==='dark'?'light':'dark';persistWorkspace();applyTheme();}
   if(event.target.closest('#notificationBtn')){$('notificationPanel')?.classList.toggle('open');}
   else if(!event.target.closest('#notificationPanel')){$('notificationPanel')?.classList.remove('open');}
@@ -508,6 +614,7 @@ renderAll();
 ensureNotificationPanel();
 renderEnhanced();
 showView(viewMeta[location.hash.slice(1)]?location.hash.slice(1):'dashboard');
+showAuthScreen(location.hash==='#signup'?'signup':location.hash==='#signin'?'login':'welcome');
 loadFromServer();
 registerVisitor();
 $('connectionStatus').onclick=()=>{if(confirm('Reload the latest database records? Export CSV first if you have unsaved changes.'))loadFromServer();};

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="InvenTrack is an inventory and logistics workspace for products, stock movements, suppliers, purchase orders, and shipment tracking.">
   <meta name="keywords" content="inventory management, Windows inventory app, logistics dashboard, stock control, shipment tracking">
-  <meta name="theme-color" content="#191737">
+  <meta name="theme-color" content="#101110">
   <meta property="og:title" content="InvenTrack | Inventory &amp; Logistics Intelligence">
   <meta property="og:description" content="Manage products, stock, suppliers, orders, and shipment routes in a Windows or web workspace.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%235b5ce2'/%3E%3Cstop offset='1' stop-color='%2318c8d8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Ctext x='32' y='40' text-anchor='middle' fill='white' font-family='Arial' font-size='24' font-weight='700'%3EIT%3C/text%3E%3C/svg%3E">
@@ -13,12 +13,72 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="workspace.css">
   <link rel="stylesheet" href="globe.css">
+  <link rel="stylesheet" href="cinematic.css">
 </head>
 <body>
-  <div class="app-shell">
+  <a class="skip-link" id="skipLink" href="#entranceContent">Skip to content</a>
+  <section class="entrance" id="entrance" data-screen="welcome" aria-label="Welcome to InvenTrack">
+    <div class="entrance-backdrop" aria-hidden="true"></div>
+    <header class="entrance-nav">
+      <button class="entrance-brand" type="button" data-auth-screen="welcome" aria-label="InvenTrack welcome page"><span class="identity-mark" aria-hidden="true"><i></i><i></i><i></i></span>InvenTrack<span class="brand-period">.</span></button>
+      <nav aria-label="Welcome navigation"><a href="#welcomePlatform" class="welcome-nav-link">The workspace</a><a href="#welcomeRoles" class="welcome-nav-link">Made for you</a><button class="entrance-signin" type="button" data-auth-screen="login">Sign in</button></nav>
+    </header>
+    <div id="entranceContent" tabindex="-1">
+      <div id="welcomeContent">
+        <section class="welcome-hero" aria-labelledby="welcomeTitle">
+          <div class="hero-copy">
+            <p class="entrance-eyebrow reveal">A LITTLE CLARITY. A LOT OF POSSIBILITY.</p>
+            <h1 id="welcomeTitle" class="reveal" tabindex="-1">Everything<br>in place.<br><span>Business in motion.</span></h1>
+            <p class="hero-description reveal">Your products, your people, your next move.<br>One considered space to keep it all flowing.</p>
+            <div class="hero-actions reveal"><button class="entrance-primary" type="button" data-auth-screen="signup">Create your workspace<span class="button-spark" aria-hidden="true">+</span></button><button class="entrance-text" type="button" data-auth-screen="login">I already have an account</button></div>
+            <p class="hero-footnote reveal">Windows &amp; browser<span></span>Your workspace, on your terms</p>
+          </div>
+          <div class="hero-caption" aria-hidden="true"><span class="caption-line"></span><p>Less friction.<br><strong>More forward.</strong></p><small>INVENTORY / IN FOCUS</small></div>
+          <a class="scroll-cue" href="#welcomePlatform">Explore the workspace<span aria-hidden="true">↓</span></a>
+        </section>
+        <section class="welcome-platform" id="welcomePlatform" aria-labelledby="platformTitle">
+          <div class="platform-heading"><p class="entrance-eyebrow">ROOM TO DO YOUR BEST WORK</p><h2 id="platformTitle">A clearer view.<br>A better next move.</h2><p>From your first product to your next shipment, keep your operation connected.</p></div>
+          <div class="platform-features"><article><span class="feature-glyph" aria-hidden="true">▦</span><h3>Know what you have.</h3><p>A searchable catalogue, stock levels, and the details that matter.</p></article><article><span class="feature-glyph" aria-hidden="true">⇄</span><h3>Keep things moving.</h3><p>Stock movements, supplier orders, and a history you can follow.</p></article><article><span class="feature-glyph" aria-hidden="true">◎</span><h3>See the whole journey.</h3><p>Organize shipment records and explore your delivery routes.</p></article></div>
+        </section>
+        <section class="welcome-roles" id="welcomeRoles" aria-labelledby="rolesTitle"><div><p class="entrance-eyebrow">YOUR BUSINESS. YOUR RHYTHM.</p><h2 id="rolesTitle">Built around<br>the way you work.</h2><p id="personaDescription" aria-live="polite">Keep your shelves ready, find products quickly, and see what needs replenishing.</p><button class="entrance-primary" type="button" data-auth-screen="signup">Find your flow<span class="button-spark" aria-hidden="true">+</span></button></div><div class="persona-options" role="group" aria-label="Explore workspace types"><button type="button" class="persona-option selected" data-persona="retail" aria-pressed="true"><span>Retail</span><small>From stockroom to storefront</small><b aria-hidden="true">▦</b></button><button type="button" class="persona-option" data-persona="wholesale" aria-pressed="false"><span>Wholesale</span><small>Every order, every partner</small><b aria-hidden="true">⇄</b></button><button type="button" class="persona-option" data-persona="operations" aria-pressed="false"><span>Operations</span><small>The bigger picture, in focus</small><b aria-hidden="true">◎</b></button></div></section>
+        <footer class="entrance-footer"><span>InvenTrack. Everything in its place.</span><span>A project by Shivanshu Gupta</span></footer>
+      </div>
+      <div class="auth-layout" id="authLayout" hidden>
+        <div class="auth-story"><p class="entrance-eyebrow">MAKE ROOM FOR WHAT'S NEXT</p><h2>Your business.<br>Your people.<br><span>Your momentum.</span></h2><p>A place for the details.<br>Space for the bigger picture.</p><div class="auth-story-footer"><span class="identity-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>Thoughtfully built.<br>Ready when you are.</span></div></div>
+        <section class="auth-card" id="authCard" aria-labelledby="authTitle">
+          <button class="auth-back" type="button" data-auth-screen="welcome">Back to welcome</button>
+          <div class="auth-tabs" role="group" aria-label="Account access"><button type="button" data-auth-screen="login" id="loginTab" aria-pressed="true">Sign in</button><button type="button" data-auth-screen="signup" id="signupTab" aria-pressed="false">New workspace</button></div>
+          <form id="authForm">
+            <p class="entrance-eyebrow">GOOD TO SEE YOU AGAIN</p><h1 id="authTitle" tabindex="-1">Welcome back.</h1><p class="auth-description">Sign in and pick up where you left off.</p>
+            <label class="entrance-field">Email address<input id="authEmail" name="email" type="email" autocomplete="username" required maxlength="254" placeholder="you@company.com"></label>
+            <label class="entrance-field">Password<span class="password-field"><input id="authPassword" name="password" type="password" autocomplete="current-password" required maxlength="200" placeholder="Your password"><button type="button" data-toggle-password="authPassword" aria-label="Show password" aria-pressed="false">Show</button></span></label>
+            <p class="form-error" id="authError" role="alert"></p><button class="entrance-primary auth-submit" id="authSubmit">Sign in to your workspace</button>
+            <p class="auth-helper">Joining a team? Use the account your workspace administrator created for you.</p><p class="auth-switch">A fresh start? <button type="button" data-auth-screen="signup">Create a workspace</button></p>
+          </form>
+          <form id="signupForm" hidden>
+            <p class="entrance-eyebrow" id="signupStepLabel">YOUR DETAILS · STEP 1 OF 2</p><h1 id="signupTitle" tabindex="-1">Make it yours.</h1><p class="auth-description" id="signupDescription">A little about you. Then, a space for your business.</p>
+            <div class="signup-progress" aria-hidden="true"><span class="active"></span><span id="signupProgressEnd"></span></div>
+            <fieldset id="signupIdentity"><legend class="visually-hidden">Your account details</legend>
+              <label class="entrance-field">Your name<input id="signupName" name="name" autocomplete="name" required maxlength="80" placeholder="What should we call you?"></label>
+              <label class="entrance-field">Email address<input id="signupEmail" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@company.com"></label>
+              <label class="entrance-field">Create a password<span class="password-field"><input id="signupPassword" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="200" placeholder="At least 12 characters"><button type="button" data-toggle-password="signupPassword" aria-label="Show password" aria-pressed="false">Show</button></span></label><small class="password-hint" id="passwordHint">Use 12 or more characters.</small>
+              <button class="entrance-primary auth-submit" type="button" id="signupNext">Continue</button>
+            </fieldset>
+            <fieldset id="signupWorkspace" disabled hidden><legend class="visually-hidden">Your workspace</legend>
+              <label class="entrance-field">Workspace name<input id="signupOrganization" name="organization" required minlength="2" maxlength="100" autocomplete="organization" placeholder="Your company or store"></label>
+              <p class="workspace-type-label">What best describes your work?</p><div class="workspace-type-options"><label><input type="radio" name="workspaceType" value="retail" checked><span><strong>Retail</strong><small>Products &amp; replenishment</small></span><b aria-hidden="true">▦</b></label><label><input type="radio" name="workspaceType" value="wholesale"><span><strong>Wholesale</strong><small>Suppliers &amp; bulk orders</small></span><b aria-hidden="true">⇄</b></label><label><input type="radio" name="workspaceType" value="operations"><span><strong>Operations</strong><small>Team &amp; inventory oversight</small></span><b aria-hidden="true">◎</b></label></div>
+              <p class="auth-helper">You'll be the workspace owner. Add your team and assign access from Admin insights.</p><button class="entrance-primary auth-submit" id="signupSubmit">Create my workspace</button><button class="auth-step-back" type="button" id="signupBack">Back to your details</button>
+            </fieldset>
+            <p class="form-error" id="signupError" role="alert"></p><p class="auth-switch">Already part of a workspace? <button type="button" data-auth-screen="login">Sign in</button></p>
+          </form>
+        </section>
+      </div>
+    </div>
+  </section>
+  <div class="app-shell" id="workspaceShell" hidden inert>
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="InvenTrack home">
-        <span class="brand-mark">IT</span>
+        <span class="brand-mark identity-mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <span><strong>InvenTrack</strong><small>OPERATIONS WORKSPACE</small></span>
       </a>
       <nav aria-label="Main navigation">
@@ -31,17 +91,17 @@
         <button class="nav-link" data-view="analytics"><span class="nav-icon">A</span> Admin insights</button>
         <button class="nav-link" data-view="logbook"><span class="nav-icon">L</span> Log book</button>
         <button class="nav-link" data-view="about"><span class="nav-icon">i</span> About InvenTrack</button>
+        <button class="nav-link" data-view="profile"><span class="nav-icon">◉</span> My account</button>
       </nav>
       <div class="sidebar-footer">
-        <span class="course-badge">WORKSPACE / 01</span>
-        <p>Your inventory. In focus.</p>
-        <small>InvenTrack · Edition 3.0</small>
+        <span class="workspace-account-avatar" id="accountAvatar" aria-hidden="true">IT</span><div><p id="accountName">Your workspace</p><small id="accountOrganization">InvenTrack</small><span class="account-role" id="accountRole">Workspace member</span></div>
       </div>
     </aside>
+    <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="Close navigation"></button>
 
-    <main>
+    <main id="workspaceContent" tabindex="-1">
       <header class="topbar">
-        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Toggle menu">&#9776;</button>
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Toggle menu" aria-controls="sidebar" aria-expanded="false">&#9776;</button>
         <div>
           <h1 id="pageTitle">Dashboard</h1>
           <p id="pageSubtitle">A clear view of your inventory today.</p>
@@ -62,10 +122,11 @@
       <section class="view active" id="dashboardView">
         <section class="dashboard-welcome">
           <div class="welcome-topline"><span>HOME</span><span id="dashboardDate">Today</span></div>
-          <h2>A clear picture.<br><em>A better next move.</em></h2>
-          <p>Inventory, partners and performance. Everything you need to keep business moving.</p>
+          <h2 id="personalGreeting">Room for your<br><em>next big move.</em></h2>
+          <p id="personalDescription">Inventory, partners and performance. Everything you need to keep business moving.</p>
           <form class="dashboard-search" id="dashboardSearchForm"><input id="dashboardSearch" type="search" placeholder="Search products, SKUs, or categories..." aria-label="Search inventory"><button class="btn primary">Search inventory</button></form>
         </section>
+        <section class="personal-actions" aria-label="Your workspace priorities"><div><span class="eyebrow" id="personalRoleLabel">YOUR WORKSPACE</span><h3 id="personalFocus">A little focus for today.</h3></div><div id="personalShortcuts"></div></section>
 
         <section class="module-grid" aria-label="Quick management modules">
           <button class="module-card" data-go="products"><span class="module-icon products">P</span><strong>Products</strong><small>Manage catalogue</small></button>
@@ -222,6 +283,10 @@
         </article>
       </section>
 
+      <section class="view" id="profileView">
+        <section class="profile-hero"><span class="profile-avatar" id="profileAvatar" aria-hidden="true">IT</span><div><p class="eyebrow">A SPACE THAT FEELS LIKE YOU</p><h2 id="profileName">Your account</h2><p id="profileSummary">Your details and workspace preferences.</p></div></section>
+        <div class="profile-grid"><article class="panel profile-details"><div class="panel-head"><div><h2>Your details</h2><p>The account connected to this workspace.</p></div></div><dl><div><dt>Email address</dt><dd id="profileEmail"></dd></div><div><dt>Workspace</dt><dd id="profileOrganization"></dd></div><div><dt>Business type</dt><dd id="profileBusiness"></dd></div><div><dt>Access</dt><dd id="profileRole"></dd></div></dl></article><article class="panel profile-preferences"><div class="panel-head"><div><h2>Make yourself comfortable.</h2><p>Choose how your workspace looks on this device.</p></div></div><div class="appearance-options" role="group" aria-label="Workspace appearance"><button type="button" data-set-theme="light" aria-pressed="true"><span class="theme-preview theme-light" aria-hidden="true"><i></i><i></i><i></i></span>Light</button><button type="button" data-set-theme="dark" aria-pressed="false"><span class="theme-preview theme-dark" aria-hidden="true"><i></i><i></i><i></i></span>Dark</button></div><p class="profile-note">Your appearance preference is saved for your account in this browser.</p></article></div>
+      </section>
       <section class="view" id="aboutView">
         <article class="project-hero">
           <div>
@@ -232,7 +297,7 @@
               <span>HTML5</span><span>CSS3</span><span>JavaScript</span><span>Node.js</span><span>SQLite</span>
             </div>
           </div>
-          <div class="project-mark" aria-hidden="true"><strong>IT</strong><span>v3.0</span></div>
+          <div class="project-mark" aria-hidden="true"><strong>IT</strong><span>v3.1</span></div>
         </article>
 
         <div class="project-grid">
@@ -321,19 +386,6 @@
 
   <dialog id="barcodeDialog" class="barcode-dialog">
     <div class="barcode-shell"><div class="dialog-head"><div><h2>Scan a barcode</h2><p id="barcodeStatus">Allow camera access and hold a barcode in view.</p></div><button class="close-btn" type="button" data-close-dialog aria-label="Close">&times;</button></div><video id="barcodeVideo" playsinline muted></video><div class="dialog-actions"><button class="btn secondary" type="button" data-close-dialog>Cancel</button></div></div>
-  </dialog>
-
-  <dialog id="authDialog" class="auth-dialog">
-    <form method="dialog" id="authForm">
-      <div class="welcome-kicker">SECURE WORKSPACE</div>
-      <div class="dialog-head"><div><h2>Sign in to InvenTrack</h2><p>Use the account configured for this organization.</p></div></div>
-      <div class="form-grid">
-        <label class="wide">Email<input id="authEmail" type="email" autocomplete="username" required maxlength="254" placeholder="admin@example.com"></label>
-        <label class="wide">Password<input id="authPassword" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
-      </div>
-      <p class="form-error" id="authError" role="alert"></p>
-      <div class="dialog-actions"><button class="btn primary" value="default" id="authSubmit">Sign in</button></div>
-    </form>
   </dialog>
 
   <dialog id="shipmentDialog">

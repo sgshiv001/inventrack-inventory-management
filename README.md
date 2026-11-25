@@ -6,14 +6,20 @@ InvenTrack is an inventory workspace for small retailers, wholesalers, and distr
 
 Products, suppliers, stock movements, purchase orders, receipts, shipments, accounts, and sessions are stored in SQLite. New workspaces start empty. No sample inventory, fabricated activity, or reset button is included in the operational application.
 
+InvenTrack 3.1.0 includes an animated welcome page, sign-in, and a two-step account setup for retail, wholesale, or operations workspaces. Administrators, wholesalers, and retailers have personalized dashboards. **My account** shows account details and saves a light or dark appearance per user in the current browser.
+
+![InvenTrack 3.1 welcome page](docs/screenshots/welcome.png)
+
+See the [interface screenshots](docs/screenshots/README.md) for sign-in, the inventory dashboard, and personal account settings. Screenshots use disposable verification accounts and inventory.
+
 ## Download the Windows app
 
 The packaged Windows app includes its runtime; you do not need Node.js to run it.
 
-- [Download the Windows installer (.exe)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-3.0.5-Setup.exe): install, then open **InvenTrack** from the Start menu.
-- [Download the portable Windows app (.zip)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.0.5/InvenTrack-win32-x64-3.0.5.zip): extract the entire ZIP, then run `InvenTrack.exe` inside the extracted folder. Keep its support files together.
+- [Download the Windows installer (.exe)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.1.0/InvenTrack-3.1.0-Setup.exe). Install, then open **InvenTrack** from the Start menu.
+- [Download the portable Windows app (.zip)](https://github.com/sgshiv001/inventrack-inventory-management/releases/download/v3.1.0/InvenTrack-win32-x64-3.1.0.zip). Extract the entire ZIP, then run `InvenTrack.exe` inside the extracted folder. Keep its support files together.
 
-Both builds are unsigned, start with your own workspace, and offer **Windows app** or **Web browser** mode. First-time setup requires an organization, administrator email, and password of at least 12 characters. See [Windows download and demonstration instructions](downloads/windows/README.md) and the [release verification report](reports/RELEASE-3.0.5.md) for checks and remaining limitations.
+Both builds are unsigned and offer **Windows app** or **Web browser** mode. The welcome page lets you sign in or create a workspace using your name, email, a password of at least 12 characters, and business type. See the [Windows download instructions](downloads/windows/README.md) and [3.1.0 verification report](reports/RELEASE-3.1.0.md).
 
 ## Run or build from source on Windows
 
@@ -24,7 +30,7 @@ npm install
 npm run desktop
 ```
 
-On first launch, enter your organization, administrator email, and a strong password. Choose **Windows app** for a desktop window or **Web browser** for the same local database in your default browser. Keep the launcher open in browser mode; it runs the local server. Subsequent launches use the account you created.
+Choose **Windows app** for a desktop window or **Web browser** for your default browser. The welcome page lets you sign in or create a workspace with your name, email, a password of at least 12 characters, and business type. Workspace owners have administrator access. Existing team members sign in with the account their administrator created. Keep the launcher open in browser mode to run the local server.
 
 To build both Windows distribution formats:
 
@@ -42,7 +48,7 @@ The desktop database is in Electron's per-user `InvenTrack/workspace/inventrack.
 
 For browser mode in the packaged app, choose **Web browser** in the Windows launcher; the source setup below is not required.
 
-Install Node.js 24, copy `.env.example` to `.env`, and set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ORGANIZATION_NAME` before the first start. Keep `.env` private.
+Install Node.js 24 and dependencies, then run `npm start` and create your workspace through the welcome page. You can also copy `.env.example` to `.env` and set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ORGANIZATION_NAME` to bootstrap an administrator before the first start. Keep `.env` private.
 
 ```powershell
 npm install
@@ -73,6 +79,6 @@ The tests cover database snapshots, empty first-run setup, authentication and ro
 
 ## Important boundaries
 
-This is a functional single-organization inventory application, not a finished multi-tenant subscription platform. It does not include live carrier integrations, realized-sales accounting, invoices, billing, automatic geocoding, password recovery, or managed cloud backups. Inventory value is an estimate from current quantities and prices. Do not onboard customer data to a public deployment until the operational controls in [LAUNCH.md](LAUNCH.md) are in place.
+Accounts created through the welcome page have separate, organization-scoped workspaces on the local server. Administrators create team accounts within their workspace and assign administrator, wholesaler, or read-only retailer access. Inventory value is an estimate from current quantities and prices. Live carrier integrations, realized-sales accounting, invoices, billing, automatic geocoding, password recovery, and managed cloud backups remain outside the current feature set. Review the operational controls in [LAUNCH.md](LAUNCH.md) before a public deployment.
 
 Existing local databases are preserved; removing sample-data seeding does not erase records already stored in them. The repository's old database files remain available in Git history, even though they are no longer tracked in the current version. Review that history if it ever held sensitive data.

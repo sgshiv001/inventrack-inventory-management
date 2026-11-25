@@ -44,11 +44,11 @@ function senderIsLauncher(event) {
 function createLauncher() {
   launcher = new BrowserWindow({
     width: 690,
-    height: 650,
+    height: 700,
     minWidth: 560,
-    minHeight: 540,
+    minHeight: 620,
     title: 'InvenTrack — choose how to work',
-    backgroundColor: '#0b1630',
+    backgroundColor: '#141612',
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true },
   });
   launcher.removeMenu();
@@ -61,7 +61,7 @@ async function ensureServer(setup) {
   if (serverUrl) return serverUrl;
   if (starting) return starting;
   starting = (async () => {
-    if (!hasAdminAccount(databaseFile)) {
+    if (!hasAdminAccount(databaseFile) && setup) {
       const email = String(setup?.email || '').trim().toLowerCase();
       const password = String(setup?.password || '');
       const organization = String(setup?.organization || '').trim();
@@ -93,7 +93,7 @@ function createWorkspace(url) {
     minWidth: 1050,
     minHeight: 680,
     title: 'InvenTrack',
-    backgroundColor: '#0b1630',
+    backgroundColor: '#f6f7f3',
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
   workspace.removeMenu();

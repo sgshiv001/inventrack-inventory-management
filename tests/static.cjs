@@ -11,6 +11,7 @@ const browserFiles = [
   'app.js',
   'styles.css',
   'workspace.css',
+  'cinematic.css',
   'globe.css',
   'globe.js',
   'globe-math.js',
@@ -20,6 +21,7 @@ const browserFiles = [
 const browserAssets = [
   'vendor/zxing-browser.min.js',
   'assets/earth-daymap.jpg',
+  'assets/welcome-warehouse.jpg',
   'assets/countries-110m.json',
   'assets/earth-globe.png',
   'assets/earth-texture.png',

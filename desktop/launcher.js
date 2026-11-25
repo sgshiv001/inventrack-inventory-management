@@ -1,31 +1,19 @@
 const byId = id => document.getElementById(id);
-let configured = false;
 
 async function refresh() {
   const state = await window.inventrackLauncher.state();
-  configured = state.configured;
-  byId('setupForm').hidden = configured;
-  byId('backup').hidden = !configured;
+  byId('backup').hidden = !state.configured;
   byId('databasePath').textContent = `Data location: ${state.databaseFile}`;
   byId('status').textContent = state.running ? `Workspace running at ${state.url}` : 'Ready to start.';
 }
 
 async function open(mode) {
-  const setup = configured ? undefined : {
-    organization: byId('organization').value.trim(),
-    email: byId('email').value.trim(),
-    password: byId('password').value,
-  };
-  if (!configured && !byId('setupForm').reportValidity()) return;
   byId('desktop').disabled = byId('browser').disabled = true;
   byId('status').textContent = 'Starting secure workspace…';
   try {
-    const state = await window.inventrackLauncher.open({ mode, setup });
-    byId('password').value = '';
-    configured = state.configured;
-    byId('setupForm').hidden = true;
-    byId('backup').hidden = false;
-    byId('status').textContent = `Workspace running at ${state.url}. Sign in with your administrator account.`;
+    const state = await window.inventrackLauncher.open({ mode });
+    byId('backup').hidden = !state.configured;
+    byId('status').textContent = 'Your workspace is open. Sign in or create your account on the welcome page.';
   } catch (error) {
     byId('status').textContent = error.message || 'Could not start the workspace.';
   } finally {
@@ -42,3 +30,4 @@ byId('backup').addEventListener('click',async()=>{
   finally{byId('backup').disabled=false;}
 });
 refresh().catch(error => { byId('status').textContent = error.message || 'Could not inspect the workspace.'; });
+window.addEventListener('focus', () => refresh().catch(() => {}));

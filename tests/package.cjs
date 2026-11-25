@@ -9,7 +9,8 @@ const path = require('node:path');
   const archive = path.join(root, 'out', 'InvenTrack-win32-x64', 'resources', 'app.asar');
   const entries = asar.listPackage(archive).map(entry => entry.replaceAll('\\', '/'));
   const files = [
-    'index.html', 'app.js', 'globe.js', 'styles.css', 'workspace.css',
+    'index.html', 'app.js', 'globe.js', 'styles.css', 'workspace.css', 'cinematic.css',
+    'assets/welcome-warehouse.jpg',
     'server.js', 'runtime-config.js', 'README.md', 'LAUNCH.md',
     'desktop/main.cjs', 'desktop/downloads.cjs', 'desktop/preload.cjs', 'desktop/launcher.html',
     'desktop/launcher.js', 'desktop/launcher.css', 'tools/database.cjs',

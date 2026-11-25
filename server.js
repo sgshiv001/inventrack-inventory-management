@@ -13,6 +13,7 @@ const AUTH_REQUIRED = true;
 const configuredSessionTtl = Number(process.env.SESSION_TTL_MS || 8 * 60 * 60 * 1000);
 const SESSION_TTL_MS = Number.isFinite(configuredSessionTtl) ? Math.max(15 * 60 * 1000, configuredSessionTtl) : 8 * 60 * 60 * 1000;
 const loginAttempts = new Map();
+const registrationAttempts = new Map();
 const ROOT = __dirname;
 const DB_PATH = prepareDatabase(ROOT);
 // Keep the legacy organization ID so existing databases remain readable.
@@ -53,6 +54,9 @@ if(!receiptColumns.some(column=>column.name==='received_quantity')){
 }
 const userColumns=db.prepare('PRAGMA table_info(users)').all();
 if(!userColumns.some(column=>column.name==='active'))db.exec('ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))');
+if(!userColumns.some(column=>column.name==='display_name'))db.exec("ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''");
+const organizationColumns = db.prepare('PRAGMA table_info(organizations)').all();
+if (!organizationColumns.some(column => column.name === 'workspace_type')) db.exec("ALTER TABLE organizations ADD COLUMN workspace_type TEXT NOT NULL DEFAULT 'operations'");
 const organizationTables = ['suppliers', 'products', 'movements', 'sales_regions', 'shipments', 'shipment_events', 'purchase_orders'];
 for (const table of organizationTables) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -60,6 +64,31 @@ for (const table of organizationTables) {
   db.prepare(`UPDATE ${table} SET organization_id=? WHERE organization_id IS NULL OR organization_id=''`).run(PRIMARY_ORG_ID);
 }
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode_nocase ON products(organization_id, barcode COLLATE NOCASE) WHERE barcode <> '';");
+// Older releases made SKUs and tracking numbers unique across every workspace.
+// Rebuild those tables once, preserving their columns, row order, and indexes.
+function scopeWorkspaceIdentifier(table, column) {
+  const schema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table).sql;
+  const globalConstraint = new RegExp(`(\\b${column}\\s+TEXT\\s+NOT\\s+NULL\\s+COLLATE\\s+NOCASE)\\s+UNIQUE`, 'i');
+  if (!globalConstraint.test(schema)) return;
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(item => `"${item.name}"`).join(',');
+  const definitions = db.prepare("SELECT sql FROM sqlite_master WHERE tbl_name=? AND type IN ('index','trigger') AND sql IS NOT NULL").all(table);
+  const scopedSchema = schema.replace(new RegExp(`^CREATE TABLE (?:IF NOT EXISTS )?${table}\\b`, 'i'), `CREATE TABLE ${table}_scoped`).replace(globalConstraint, '$1');
+  db.exec('PRAGMA foreign_keys=OFF; BEGIN IMMEDIATE;');
+  try {
+    db.exec(scopedSchema);
+    db.exec(`INSERT INTO ${table}_scoped(rowid,${columns}) SELECT rowid,${columns} FROM ${table}; DROP TABLE ${table}; ALTER TABLE ${table}_scoped RENAME TO ${table};`);
+    for (const definition of definitions) db.exec(definition.sql);
+    db.exec(`CREATE UNIQUE INDEX idx_${table}_${column}_workspace ON ${table}(organization_id,${column} COLLATE NOCASE); COMMIT;`);
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  } finally {
+    db.exec('PRAGMA foreign_keys=ON');
+  }
+}
+scopeWorkspaceIdentifier('products', 'sku');
+scopeWorkspaceIdentifier('shipments', 'tracking');
+
 db.exec(`CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
   CREATE INDEX IF NOT EXISTS idx_products_organization ON products(organization_id);
   CREATE INDEX IF NOT EXISTS idx_movements_organization ON movements(organization_id);
@@ -88,12 +117,12 @@ function parseCookies(header = '') {
     .filter(([key, value]) => key && value).map(([key, ...value]) => [key, decodeURIComponent(value.join('='))]));
 }
 function publicUser(user) {
-  return user ? { id: user.id, email: user.email, role: user.role, organizationId: user.organization_id, organizationName: user.organization_name } : null;
+  return user ? { id: user.id, email: user.email, displayName: user.display_name || '', role: user.role, organizationId: user.organization_id, organizationName: user.organization_name, workspaceType: user.workspace_type || 'operations' } : null;
 }
 function currentUser(req) {
   const token = parseCookies(req.headers.cookie).inventrack_session;
   if (!token) return null;
-  const user = db.prepare(`SELECT users.id, users.email, users.role, users.organization_id, organizations.name AS organization_name
+  const user = db.prepare(`SELECT users.id, users.email, users.display_name, users.role, users.organization_id, organizations.name AS organization_name, organizations.workspace_type
     FROM sessions JOIN users ON users.id=sessions.user_id JOIN organizations ON organizations.id=users.organization_id
     WHERE sessions.token_hash=? AND sessions.expires_at>? AND users.active=1`).get(tokenHash(token), new Date().toISOString());
   if (user) db.prepare('UPDATE sessions SET last_seen_at=? WHERE token_hash=?').run(new Date().toISOString(), tokenHash(token));
@@ -115,7 +144,7 @@ function ensureAdminUser() {
   if (db.prepare('SELECT 1 FROM users LIMIT 1').get()) return;
   const email = normalizeEmail(process.env.ADMIN_EMAIL);
   const password = String(process.env.ADMIN_PASSWORD || '');
-  if (!email && !password) throw new Error('First startup needs ADMIN_EMAIL and ADMIN_PASSWORD. Set both before starting the web server.');
+  if (!email && !password) return;
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length>254 || password.length < 12 || password.length>200) {
     throw new Error('ADMIN_EMAIL must be valid and ADMIN_PASSWORD must contain at least 12 characters.');
   }
@@ -131,6 +160,37 @@ function createUser(payload, organizationId) {
   if(db.prepare('SELECT 1 FROM users WHERE lower(email)=?').get(email))throw new Error('This email address already has an account.');
   db.prepare('INSERT INTO users(id,organization_id,email,password_hash,role,created_at) VALUES(?,?,?,?,?,?)').run(`user_${crypto.randomUUID().replaceAll('-','')}`,organizationId,email,hashPassword(password),role,new Date().toISOString());
   return usersFor(organizationId);
+}
+function registerWorkspace(payload, req) {
+  const displayName = String(payload.displayName || '').trim();
+  const organizationName = String(payload.organizationName || '').trim();
+  const workspaceType = String(payload.workspaceType || 'operations');
+  const email = normalizeEmail(payload.email);
+  const password = String(payload.password || '');
+  if (!displayName || displayName.length > 80 || organizationName.length < 2 || organizationName.length > 100) {
+    throw new Error('Enter your name and a workspace name of 2–100 characters.');
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254 || password.length < 12 || password.length > 200) {
+    throw new Error('Enter a valid email and a password of 12–200 characters.');
+  }
+  if (!['retail', 'wholesale', 'operations'].includes(workspaceType)) throw new Error('Choose a supported workspace type.');
+  const passwordHash = hashPassword(password);
+  const organizationId = `org_${crypto.randomUUID().replaceAll('-', '')}`;
+  const userId = `user_${crypto.randomUUID().replaceAll('-', '')}`;
+  const now = new Date().toISOString();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (db.prepare('SELECT 1 FROM users WHERE lower(email)=?').get(email)) throw new Error('This email already has an account. Sign in to continue.');
+    db.prepare('INSERT INTO organizations(id,name,created_at,workspace_type) VALUES(?,?,?,?)').run(organizationId, organizationName, now, workspaceType);
+    db.prepare('INSERT INTO users(id,organization_id,email,password_hash,role,created_at,display_name) VALUES(?,?,?,?,?,?,?)').run(userId, organizationId, email, passwordHash, 'admin', now, displayName);
+    const setCookie = createSession(userId, req);
+    const user = publicUser({ id: userId, email, display_name: displayName, role: 'admin', organization_id: organizationId, organization_name: organizationName, workspace_type: workspaceType });
+    db.exec('COMMIT');
+    return { user, setCookie };
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 function disableUser(id, user) {
   if(id===user.id)throw new Error('You cannot disable your own account.');
@@ -234,6 +294,7 @@ db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('secure-pil
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('operations-upgrade-20260924', 'Stock transactions, barcode scanning and purchase orders', 'Added product barcodes and browser camera scanning, atomic role-protected stock transactions with append-only movement history, supplier purchase orders generated from reorder suggestions, and transactional order receiving.', '2026-09-24T09:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('windows-web-3-20261001', 'InvenTrack 3.0 — Windows and web operations', 'Empty first-run workspaces, mandatory authentication, team accounts, desktop/browser launcher, recorded delivery globe, and workspace backups.', '2026-10-01T09:00:00Z');
 db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('focused-inventory-301-20261001', 'InvenTrack 3.0.1 — Focused inventory operations', 'Removed the optional product-model viewer and upload API. The recorded delivery globe remains. Existing retired attachments are preserved during upgrades and backups.', '2026-10-01T10:00:00Z');
+db.prepare('INSERT OR IGNORE INTO release_log VALUES (?,?,?,?)').run('cinematic-workspaces-310-20261125', 'InvenTrack 3.1.0 — Cinematic workspaces', 'Animated welcome, sign-in and workspace registration, personalized role dashboards, personal account pages, saved appearance preferences, and unified Windows and browser onboarding.', '2026-11-25T00:00:00Z');
 function send(res, code, body, type = 'application/json', extraHeaders = {}) { const headers={ 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff', 'X-Frame-Options':'DENY', ...extraHeaders }; if(CORS_ORIGIN){headers['Access-Control-Allow-Origin']=CORS_ORIGIN;headers['Access-Control-Allow-Methods']='GET, PUT, POST, OPTIONS';headers['Access-Control-Allow-Headers']='Content-Type';headers['Access-Control-Allow-Credentials']='true';headers.Vary='Origin'} res.writeHead(code, headers); res.end(type === 'application/json' && !Buffer.isBuffer(body) ? JSON.stringify(body) : body); }
 function originAllowed(req) { const origin=req.headers.origin; if(!origin)return true; try { const requestOrigin=new URL(origin),hostOrigin=`${requestOrigin.protocol}//${req.headers.host}`; return origin===hostOrigin || (CORS_ORIGIN && origin===CORS_ORIGIN); } catch { return false; } }
 function body(req) { return new Promise((resolve, reject) => { let length=0;const chunks=[];req.on('data',chunk=>{length+=chunk.length;if(length>1_000_000){chunks.length=0;reject(new Error('Request body is too large.'));}else chunks.push(chunk);});req.on('error',reject);req.on('end',()=>{if(length>1_000_000)return;try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}'));}catch{reject(new Error('Invalid JSON.'));}}); }); }
@@ -329,13 +390,22 @@ const server = http.createServer(async (req, res) => {
       const user = currentUser(req);
       return send(res, 200, { required: AUTH_REQUIRED, authenticated: Boolean(user), user: publicUser(user) });
     }
+    if (url.pathname === '/api/auth/register' && req.method === 'POST') {
+      if (!originAllowed(req)) return send(res, 403, { error: 'Cross-origin writes are not allowed.' });
+      const key = req.socket.remoteAddress, now = Date.now(), attempt = registrationAttempts.get(key);
+      if (attempt?.until > now && attempt.count >= 10) return send(res, 429, { error: 'Too many account creation attempts. Try again in 15 minutes.' });
+      registrationAttempts.set(key, { count: attempt?.until > now ? attempt.count + 1 : 1, until: now + 15 * 60 * 1000 });
+      if (registrationAttempts.size > 10000) for (const [address, value] of registrationAttempts) if (value.until <= now) registrationAttempts.delete(address);
+      const result = registerWorkspace(await body(req), req);
+      return send(res, 201, { authenticated: true, user: result.user }, 'application/json', { 'Set-Cookie': result.setCookie });
+    }
     if (url.pathname === '/api/auth/login' && req.method === 'POST') {
       if (!originAllowed(req)) return send(res,403,{error:'Cross-origin writes are not allowed.'});
       const payload = await body(req), email = normalizeEmail(payload.email), password = String(payload.password || '');
       if (!/^\S+@\S+\.\S+$/.test(email) || email.length>254 || !password || password.length>200) return send(res, 400, { error: 'Enter a valid email and password.' });
       const attemptKey=`${req.socket.remoteAddress}|${email}`,now=Date.now(),attempt=loginAttempts.get(attemptKey);
       if(attempt?.until>now&&attempt.count>=8)return send(res,429,{error:'Too many sign-in attempts. Try again in 15 minutes.'});
-      const user = db.prepare(`SELECT users.id, users.email, users.password_hash, users.role, users.organization_id, organizations.name AS organization_name
+      const user = db.prepare(`SELECT users.id, users.email, users.display_name, users.password_hash, users.role, users.organization_id, organizations.name AS organization_name, organizations.workspace_type
         FROM users JOIN organizations ON organizations.id=users.organization_id WHERE lower(users.email)=? AND users.active=1`).get(email);
       if (!user || !verifyPassword(password, user.password_hash)) {
         const count=attempt?.until>now?attempt.count+1:1;loginAttempts.set(attemptKey,{count,until:now+15*60*1000});
@@ -416,7 +486,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed.' });
     const requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
     const publicAsset = /^(?:assets\/(?:products|suppliers)\/[a-z0-9_-]+\.png|assets\/(?:earth-texture|earth-globe|product-catalog|supplier-team)\.png)$/i.test(requested);
-    if (!['index.html','styles.css','workspace.css','globe.css','app.js','globe.js','globe-math.js','runtime-config.js','vendor/zxing-browser.min.js','assets/earth-daymap.jpg','assets/countries-110m.json'].includes(requested) && !publicAsset) return send(res,404,'Not found','text/plain');
+    if (!['index.html','styles.css','workspace.css','cinematic.css','globe.css','app.js','globe.js','globe-math.js','runtime-config.js','vendor/zxing-browser.min.js','assets/earth-daymap.jpg','assets/countries-110m.json','assets/welcome-warehouse.jpg'].includes(requested) && !publicAsset) return send(res,404,'Not found','text/plain');
     const file = path.resolve(ROOT, requested);
     if (!file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return send(res, 404, 'Not found', 'text/plain');
     return send(res, 200, req.method === 'HEAD' ? '' : fs.readFileSync(file), mime[path.extname(file)] || 'application/octet-stream');
