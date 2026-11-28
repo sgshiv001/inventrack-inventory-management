@@ -11,5 +11,6 @@ data/
 !.env.example
 node_modules/
 out/
+dist/
 __pycache__/
 *.py[cod]

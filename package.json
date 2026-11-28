@@ -12,6 +12,9 @@
   "scripts": {
     "start": "node server.js",
     "start:hosted": "node cloud-start.cjs",
+    "build:web": "node tools/build-web.cjs",
+    "source:zip": "node tools/source-zip.cjs",
+    "pretest": "node tools/build-web.cjs",
     "dev": "node --watch server.js",
     "desktop": "electron .",
     "desktop:package": "electron-forge package --platform win32",

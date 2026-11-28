@@ -26,7 +26,7 @@ jobs:
         run: npm ci --omit=dev --ignore-scripts
 
       - name: Check JavaScript syntax
-        run: node --check server.js && node --check app.js && node --check globe.js && node --check globe-math.js && node --check desktop/main.cjs && node --check desktop/downloads.cjs && node --check desktop/launcher.js
+        run: node --check server.js && node --check app.js && node --check globe.js && node --check globe-math.js && node --check desktop/main.cjs && node --check desktop/downloads.cjs && node --check desktop/launcher.js && node --check tools/build-web.cjs && node --check tools/source-zip.cjs
 
       - name: Run tests
         run: npm test

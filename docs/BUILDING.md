@@ -38,7 +38,7 @@ python -m unittest discover -s tests -p report_tool.py
 
 The JavaScript suite covers persistence, account and role boundaries, stock operations, barcode decoding, exports, launcher modes, and frontend behavior. The Python suite covers the reporting tool. These checks use disposable test data.
 
-The shared public browser files also exist in `dist/`. When editing a browser file or bundled asset, update its corresponding copy there. `tests/static.cjs` lists the required files and checks that browser source copies match. The bundle requires a running API with authentication.
+`npm run build:web` generates the public browser bundle in `dist/` from the source files and required assets. `npm test` runs this build automatically before the tests. The generated directory is excluded from Git and can be recreated after extracting a source ZIP. The bundle requires a running API with authentication.
 
 ## Windows distribution
 
@@ -58,3 +58,9 @@ Release assets are uploaded to GitHub Releases, with SHA-256 hashes in `download
 ## Hosted operation
 
 The root `Dockerfile` builds the Node.js service and starts `cloud-start.cjs`. Hosted configuration and encrypted storage credentials are managed on the services. Deployment is manual, as described in [HOSTING.md](HOSTING.md). Pushing a commit runs GitHub checks without redeploying the website.
+
+## Source ZIP below 5 MB
+
+From a Git checkout with all intended changes committed, run `npm run source:zip`. It exports the current commit into an archive beside the repository, checks for private or generated files, and enforces a limit strictly below 5,000,000 bytes. Existing output files are preserved. To choose a destination, use `npm run source:zip -- C:/Uploads/InvenTrack-Source.zip`.
+
+The archive contains the application source, required artwork, locally bundled barcode decoder, tests, and documentation. Dependencies and Windows installers are downloaded or rebuilt when needed. Extract it, run `npm ci`, and then use `npm start` for the local browser app or `npm run desktop` for the Windows launcher. Run `npm run build:web` when a `dist/` bundle is needed.

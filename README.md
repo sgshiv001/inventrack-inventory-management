@@ -83,6 +83,8 @@ For the language and technology map, locked dependency setup, and Windows packag
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development and pull request guidance.
 
+For a source upload below 5 MB, run `npm run source:zip` from a committed Git checkout. The [build guide](docs/BUILDING.md#source-zip-below-5-mb) explains what the archive contains and how to run it after extraction.
+
 ```powershell
 npm test
 ```

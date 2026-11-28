@@ -21,7 +21,7 @@ git diff --check
 
 Explain which checks you ran and their results. Desktop window behavior also needs launcher verification. A new Windows distribution needs a fresh Forge build followed by `node tests/package.cjs`; see [the release checks](docs/BUILDING.md#windows-distribution).
 
-When editing browser source or bundled assets, update the matching copies in `dist/`. The static checks compare these files. Changes to authentication, roles, or inventory writes should preserve organization boundaries and revision conflict handling.
+When editing browser source or bundled assets, run `npm run build:web` to regenerate `dist/`. The test command also builds it automatically, and static checks compare the result with its source. Changes to authentication, roles, or inventory writes should preserve organization boundaries and revision conflict handling.
 
 ## What belongs in a commit
 
