@@ -1,5 +1,7 @@
 # InvenTrack
 
+**[Open InvenTrack online](https://inventrack-workspace.onrender.com)**
+
 A project by [Shivanshu Gupta](https://github.com/sgshiv001).
 
 InvenTrack is an inventory workspace for small retailers, wholesalers, and distributors. It runs as a Windows application or a Node.js web application. The Windows launcher lets you open the same local workspace in its dedicated desktop window or your default browser.
@@ -8,7 +10,7 @@ Products, suppliers, stock movements, purchase orders, receipts, shipments, acco
 
 InvenTrack 3.1.0 includes an animated welcome page, sign-in, and a two-step account setup for retail, wholesale, or operations workspaces. Administrators, wholesalers, and retailers have personalized dashboards. **My account** shows account details and saves a light or dark appearance per user in the current browser.
 
-![InvenTrack 3.1 welcome page](docs/screenshots/welcome.png)
+[![InvenTrack 3.1 welcome page](docs/screenshots/welcome.png)](https://inventrack-workspace.onrender.com)
 
 See the [interface screenshots](docs/screenshots/README.md) for sign-in, the inventory dashboard, and personal account settings. Screenshots use disposable verification accounts and inventory.
 
