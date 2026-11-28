@@ -79,6 +79,8 @@ An optional Python 3.10+ reporting tool reads an existing database without chang
 
 ## Validation
 
+For the language and technology map, locked dependency setup, and Windows packaging steps, see the [build guide](docs/BUILDING.md).
+
 ```powershell
 npm test
 ```
