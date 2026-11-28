@@ -4,7 +4,7 @@
 
 ## Services
 
-- The Node.js application runs on a Render Free Docker web service in Singapore. Render builds the root `Dockerfile` when `main` changes.
+- The Node.js application runs on a Render Free Docker web service in Singapore. Deployments are manual. Pushing `main` updates GitHub and runs the tests; it does not deploy the website. In the service's Render dashboard, choose **Manual Deploy → Deploy latest commit** to build the root `Dockerfile` from the latest `main` commit.
 - The storage Worker in `hosting/state-store` uses Sites-managed R2 storage. Its `/state` endpoint requires a server-side bearer token. The database is encrypted with AES-256-GCM before upload.
 - The Windows **Online workspace** mode loads the official HTTPS service and uses the same accounts, inventory, and role permissions as the website. It keeps a dedicated persistent desktop sign-in session. Local Windows and standalone-server workspaces use separate databases; local records are not automatically uploaded or merged.
 
@@ -40,3 +40,9 @@ The deployed storage Worker can be checked at `/health`. Database reads and writ
 - Redeploy verification checks an existing account, session, product, stock quantity, and a fresh sign-in after the new container restores its database.
 
 The root `server.js` remains the entry point for local workspaces. Changes to the storage Worker should be published to the Sites project identified by `hosting/state-store/.openai/hosting.json`.
+
+## Published connection checks
+
+The Windows 3.2.0 release and public web service were verified on 28 November 2026. A website account signed into the desktop online window, inventory writes were visible to independent clients in both directions, and the Electron CSV export completed. After the website deployed the 3.2.0 source, the existing account, session, product, stock quantity, and a fresh password sign-in all survived. The main-branch and release-tag GitHub Actions checks passed. The release assets are public and match their recorded SHA-256 hashes.
+
+The Render GitHub app was not installed. Automatic deployments are disabled, matching the selected manual deployment workflow.
