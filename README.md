@@ -12,6 +12,12 @@ InvenTrack 3.1.0 includes an animated welcome page, sign-in, and a two-step acco
 
 See the [interface screenshots](docs/screenshots/README.md) for sign-in, the inventory dashboard, and personal account settings. Screenshots use disposable verification accounts and inventory.
 
+## Open the web app
+
+[Open InvenTrack online](https://inventrack-workspace.onrender.com). Anyone can visit the welcome page and create a workspace. Sign in to manage your inventory and team accounts.
+
+The app runs on Render's Free service with encrypted database snapshots in managed object storage. An initial visit after inactivity can take about a minute while the service wakes. Hosted workspaces have their own online data. The Windows application's local database is separate. See the [hosting instructions](docs/HOSTING.md).
+
 ## Download the Windows app
 
 The packaged Windows app includes its runtime; you do not need Node.js to run it.

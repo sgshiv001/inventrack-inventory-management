@@ -1,5 +1,9 @@
 # Operating and deploying InvenTrack
 
+## Hosted web application
+
+Open [InvenTrack online](https://inventrack-workspace.onrender.com) to create a hosted workspace or sign in. The public web service uses encrypted database snapshots in managed object storage and restores them when it starts. Render's Free service can sleep after inactivity, so the first visit may take about a minute. See [the hosting configuration and verification notes](docs/HOSTING.md).
+
 ## Windows desktop and local browser
 
 Run `npm install` and `npm run desktop` to develop locally. **Windows app** opens a dedicated window and **Web browser** opens the same local server in your default browser. Both modes show the welcome page, where you can sign in or create an account and workspace. New workspace owners receive administrator access and can create team accounts from Admin insights. The database is under Electron's per-user app data folder. Keep the launcher running while the browser is in use.

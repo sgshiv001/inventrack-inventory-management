@@ -1,6 +1,8 @@
 # InvenTrack Architecture
 
-InvenTrack is a Windows and web inventory application for single-organization operations. The Electron launcher runs the same Node.js API used by the standalone web deployment.
+InvenTrack is a Windows and web inventory application with organization-scoped workspaces. The Electron launcher, standalone local server, and public hosted application use the same Node.js inventory API.
+
+The [public web app](https://inventrack-workspace.onrender.com) runs through `cloud-start.cjs`. This entry restores an encrypted SQLite snapshot from managed object storage, serializes API requests, and confirms successful writes after uploading a new snapshot with an ETag condition. The local entry uses `server.js` directly. See [hosting details](HOSTING.md).
 
 ## System overview
 
