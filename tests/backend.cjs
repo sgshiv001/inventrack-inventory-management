@@ -83,7 +83,8 @@ const post=async(path,data)=>fetch(`http://127.0.0.1:${port}${path}`,{method:'PO
  const preservedDatabase=new DatabaseSync(join(folder,'test.db'),{readOnly:true});
  assert.equal(preservedDatabase.prepare('SELECT model_file FROM products WHERE id=?').get(lowStockProduct.id).model_file,'preserved-legacy-model.glb');preservedDatabase.close();
  for(const url of ['/server.js','/data/inventrack.db','/.git/config'])assert.equal((await get(url)).status,404);
- for(const url of ['/assets/earth-texture.png','/assets/products/p1.png','/assets/suppliers/s1.png'])assert.equal((await get(url)).status,200);
+ for(const url of ['/assets/earth-daymap.jpg','/assets/countries-110m.json','/assets/welcome-warehouse.jpg'])assert.equal((await get(url)).status,200);
+ for(const url of ['/assets/earth-texture.png','/assets/products/p1.png','/assets/suppliers/s1.png'])assert.equal((await get(url)).status,404);
  assert.equal((await get('/runtime-config.js')).status,200);
  for(const url of ['/globe.js','/globe-math.js','/globe.css'])assert.equal((await get(url)).status,200);
  const earth=await get('/assets/earth-daymap.jpg');assert.equal(earth.status,200);assert.match(earth.headers.get('content-type'),/^image\/jpeg/);

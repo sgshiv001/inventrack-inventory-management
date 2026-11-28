@@ -23,12 +23,6 @@ const browserAssets = [
   'assets/earth-daymap.jpg',
   'assets/welcome-warehouse.jpg',
   'assets/countries-110m.json',
-  'assets/earth-globe.png',
-  'assets/earth-texture.png',
-  'assets/product-catalog.png',
-  'assets/supplier-team.png',
-  ...Array.from({ length: 6 }, (_, index) => `assets/products/p${index + 1}.png`),
-  ...Array.from({ length: 3 }, (_, index) => `assets/suppliers/s${index + 1}.png`),
 ];
 
 for (const file of browserFiles) {

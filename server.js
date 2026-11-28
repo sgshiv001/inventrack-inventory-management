@@ -486,8 +486,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/health') return send(res, 200, { status: 'ok' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed.' });
     const requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
-    const publicAsset = /^(?:assets\/(?:products|suppliers)\/[a-z0-9_-]+\.png|assets\/(?:earth-texture|earth-globe|product-catalog|supplier-team)\.png)$/i.test(requested);
-    if (!['index.html','styles.css','workspace.css','cinematic.css','globe.css','app.js','globe.js','globe-math.js','runtime-config.js','vendor/zxing-browser.min.js','assets/earth-daymap.jpg','assets/countries-110m.json','assets/welcome-warehouse.jpg'].includes(requested) && !publicAsset) return send(res,404,'Not found','text/plain');
+    if (!['index.html','styles.css','workspace.css','cinematic.css','globe.css','app.js','globe.js','globe-math.js','runtime-config.js','vendor/zxing-browser.min.js','assets/earth-daymap.jpg','assets/countries-110m.json','assets/welcome-warehouse.jpg'].includes(requested)) return send(res,404,'Not found','text/plain');
     const file = path.resolve(ROOT, requested);
     if (!file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return send(res, 404, 'Not found', 'text/plain');
     return send(res, 200, req.method === 'HEAD' ? '' : fs.readFileSync(file), mime[path.extname(file)] || 'application/octet-stream');
