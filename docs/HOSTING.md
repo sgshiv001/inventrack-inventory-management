@@ -6,7 +6,7 @@
 
 - The Node.js application runs on a Render Free Docker web service in Singapore. Render builds the root `Dockerfile` when `main` changes.
 - The storage Worker in `hosting/state-store` uses Sites-managed R2 storage. Its `/state` endpoint requires a server-side bearer token. The database is encrypted with AES-256-GCM before upload.
-- Local Windows and standalone-server workspaces use their own databases. The hosted application starts with its own online workspaces.
+- The Windows **Online workspace** mode loads the official HTTPS service and uses the same accounts, inventory, and role permissions as the website. It keeps a dedicated persistent desktop sign-in session. Local Windows and standalone-server workspaces use separate databases; local records are not automatically uploaded or merged.
 
 Free-tier quotas apply. Render Free services sleep after inactivity and can take about a minute to wake. The [Render Free service documentation](https://render.com/docs/free) describes the current service limits.
 

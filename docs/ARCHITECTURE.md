@@ -165,7 +165,7 @@ erDiagram
 
 The default runtime database lives in the OS-local InvenTrack data directory, outside the repository. Explicit `DB_PATH` settings override it. A legacy repository database is migrated using a consistent SQLite snapshot without deleting the original. `tools/database.cjs` provides migration, live backups, integrity checks, and restore to a new file; runtime databases are excluded from Git.
 
-New databases start empty. There is no seeded browser inventory, automatic legacy import, or reset endpoint. The static frontend requires the API. The Windows app starts one loopback server on an available port; its desktop and browser modes use that same database. Renderers are sandboxed with Node integration disabled, restricted navigation, and narrow launcher IPC.
+New databases start empty. There is no seeded browser inventory, automatic legacy import, or reset endpoint. The static frontend requires the API. The Windows Online workspace loads the official HTTPS service in a separate persistent Electron session and shares its hosted accounts and inventory. The two local modes start one loopback server on an available port and use that same local database. Switching modes replaces the workspace window and scopes navigation, CSV downloads, and camera permissions to the active origin. Renderers are sandboxed with Node integration disabled, restricted navigation, and narrow launcher IPC.
 
 A public web deployment requires HTTPS, persistent storage, monitoring, backup/restore procedures, and a security review. Multi-tenant self-service provisioning, managed identity, password recovery, and live carrier integrations are outside this release.
 

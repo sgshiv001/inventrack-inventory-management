@@ -3,24 +3,25 @@ const byId = id => document.getElementById(id);
 async function refresh() {
   const state = await window.inventrackLauncher.state();
   byId('backup').hidden = !state.configured;
-  byId('databasePath').textContent = `Data location: ${state.databaseFile}`;
-  byId('status').textContent = state.running ? `Workspace running at ${state.url}` : 'Ready to start.';
+  byId('databasePath').textContent = `Local data location: ${state.databaseFile}`;
+  byId('status').textContent = state.workspaceMode === 'online' ? 'Online workspace is open. Use the same account as the website.' : state.running ? `Local workspace running at ${state.url}` : 'Ready to start.';
 }
 
 async function open(mode) {
-  byId('desktop').disabled = byId('browser').disabled = true;
-  byId('status').textContent = 'Starting secure workspace…';
+  byId('online').disabled = byId('desktop').disabled = byId('browser').disabled = true;
+  byId('status').textContent = mode === 'online' ? 'Connecting online… The free host may take about a minute to wake.' : 'Starting local workspace…';
   try {
     const state = await window.inventrackLauncher.open({ mode });
     byId('backup').hidden = !state.configured;
-    byId('status').textContent = 'Your workspace is open. Sign in or create your account on the welcome page.';
+    byId('status').textContent = mode === 'online' ? 'Online workspace is open. Sign in with your website account to share inventory across devices.' : 'Local workspace is open. Sign in or create an account on this computer.';
   } catch (error) {
     byId('status').textContent = error.message || 'Could not start the workspace.';
   } finally {
-    byId('desktop').disabled = byId('browser').disabled = false;
+    byId('online').disabled = byId('desktop').disabled = byId('browser').disabled = false;
   }
 }
 
+byId('online').addEventListener('click', () => open('online'));
 byId('desktop').addEventListener('click', () => open('desktop'));
 byId('browser').addEventListener('click', () => open('browser'));
 byId('backup').addEventListener('click',async()=>{

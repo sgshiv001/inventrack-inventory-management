@@ -1,6 +1,6 @@
 # Product walkthrough
 
-InvenTrack 3.1.0 is a local inventory application maintained by [Shivanshu Gupta](https://github.com/sgshiv001). Its cinematic welcome page leads into sign-in and workspace creation for retail, wholesale, or operations businesses. Each workspace has organization-scoped data and personalized administrator, wholesaler, or retailer dashboards. New workspaces start empty. Windows and browser modes share the local server.
+InvenTrack 3.2.0 is a Windows and online inventory application maintained by [Shivanshu Gupta](https://github.com/sgshiv001). Its cinematic welcome page leads into sign-in and workspace creation for retail, wholesale, or operations businesses. Each workspace has organization-scoped data and personalized administrator, wholesaler, or retailer dashboards. New workspaces start empty. Windows Online workspace and the public website share hosted accounts and inventory. The two local launcher options share a separate server on the user's computer.
 
 ## Intended users
 

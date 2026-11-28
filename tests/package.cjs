@@ -8,6 +8,10 @@ const path = require('node:path');
   const root = path.resolve(__dirname, '..');
   const archive = path.join(root, 'out', 'InvenTrack-win32-x64', 'resources', 'app.asar');
   const entries = asar.listPackage(archive).map(entry => entry.replaceAll('\\', '/'));
+  const runtimeRoots = new Set(['assets', 'desktop', 'tools', 'vendor', 'node_modules',
+    'package.json', 'server.js', 'runtime-config.js', 'index.html', 'app.js', 'styles.css',
+    'workspace.css', 'cinematic.css', 'globe.css', 'globe.js', 'globe-math.js', 'README.md', 'LAUNCH.md']);
+  for (const entry of entries) assert.ok(runtimeRoots.has(entry.split('/')[1]), `Unexpected package root: ${entry}`);
   const files = [
     'index.html', 'app.js', 'globe.js', 'styles.css', 'workspace.css', 'cinematic.css',
     'assets/welcome-warehouse.jpg',
@@ -30,5 +34,6 @@ const path = require('node:path');
   assert.ok(!entries.some(entry => /^\/(?:data|tests|reports|dist|docs|downloads|\.[^/]+)(?:\/|$)/i.test(entry)), 'private/development folders must not ship');
   assert.ok(!entries.some(entry => /(?:^|\/)\.env(?:\.|$)|\.(?:db|sqlite|sqlite3)(?:-wal|-shm)?$/i.test(entry)), 'databases and environment files must not ship');
   assert.ok(!entries.some(entry => /\.(?:glb|gltf)$/i.test(entry)), 'no product-model assets');
+  assert.ok(!entries.some(entry => /\.(?:docx|pptx|pdf|ndjson)$|^\/(?:build_inventrack_|presentation_preview|template_media|dashboard-slide)/i.test(entry)), 'project reports and presentation artifacts must not ship');
   console.log(`PASS: Windows ${packaged.version} runtime sources, metadata, dependency, globe asset, viewer removal, and private-file exclusion.`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

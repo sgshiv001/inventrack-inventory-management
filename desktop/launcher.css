@@ -11,6 +11,8 @@ h1 { font-size: 40px; font-weight: 450; line-height: 1.13; letter-spacing: -1.7p
 h1 em { font-style: normal; color: #f0aa80; }
 .lede { color: #a8ae9d; line-height: 1.8; font-size: 14px; max-width: 530px; }
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 25px; }
+#online { grid-column: 1 / -1; min-height: 108px; border-color: #a27656; background: #373025ed; }
+#online .symbol { float: left; margin: 4px 18px 26px 0; }
 button { font: inherit; cursor: pointer; min-height: 140px; padding: 19px; text-align: left; background: #23271fed; border: 1px solid #404632; border-radius: 8px; color: #f1f0e6; transition: transform .2s, border-color .2s, background .2s; }
 button:hover { transform: translateY(-3px); border-color: #d9a27e; background: #2f3025; }
 button:focus-visible { outline: 2px solid #f0aa80; outline-offset: 4px; }

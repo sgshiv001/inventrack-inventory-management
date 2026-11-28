@@ -3,6 +3,8 @@ module.exports = {
     asar: true,
     executableName: 'InvenTrack',
     ignore: [
+      // Copy only runtime roots, so unrelated documents and preview folders never enter a build.
+      /^\/(?=[^/])(?!(?:assets|desktop|tools|vendor|node_modules)(?:\/|$)|(?:package\.json|server\.js|runtime-config\.js|index\.html|app\.js|styles\.css|workspace\.css|cinematic\.css|globe\.css|globe\.js|globe-math\.js|README\.md|LAUNCH\.md)$)/,
       /^\/\.[^/]+(?:\/|$)/,
       /^\/tools\/inventory_report\.py$/,
       /\/__pycache__(?:\/|$)/,
@@ -18,6 +20,8 @@ module.exports = {
       /^\/hosting(?:\/|$)/,
       /^\/(?:Dockerfile|cloud-start\.cjs)$/,
       /^\/tools\/hosted-store\.cjs$/,
+      /\.(?:docx|pptx|pdf|ndjson)$/i,
+      /^\/(?:build_inventrack_[^/]+|dashboard-slide\.jpg|presentation_preview|template_media)(?:\/|$)/,
       /\.(?:db|sqlite|sqlite3)(?:-(?:wal|shm))?$/i,
     ],
   },

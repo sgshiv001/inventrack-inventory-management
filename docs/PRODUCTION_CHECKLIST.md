@@ -1,6 +1,6 @@
 # InvenTrack production checklist
 
-InvenTrack 3.1.0 supports local inventory operations with separate organization-scoped workspaces on Windows and through its Node.js web server. The [3.1.0 verification report](../reports/RELEASE-3.1.0.md) records the current checks and target-machine verification still needed. Earlier reports retain the results from those releases.
+InvenTrack 3.2.0 supports online and local inventory operations with separate organization-scoped workspaces on Windows and through its Node.js web server. The [3.2.0 verification report](../reports/RELEASE-3.2.0.md) records the current checks and target-machine verification still needed. Earlier reports retain the results from those releases.
 
 ## Already ready
 
@@ -9,7 +9,7 @@ InvenTrack 3.1.0 supports local inventory operations with separate organization-
 - Mandatory scrypt-backed login, HTTP-only sessions, server-side role checks, organization-scoped records, login throttling, and administrator-managed accounts.
 - Welcome-page workspace creation, retail/wholesale/operations business types, role-specific dashboards, and personal account appearance preferences.
 - Visitor pulse endpoint with daily de-duplication and no IP-address storage.
-- Windows launcher with desktop/browser choice, installer and portable ZIP builds, and workspace backups that preserve legacy attachments. The optional product-model viewer is removed. New workspaces start empty; static frontend hosting requires the API.
+- Windows launcher with online, local desktop, and local browser choices, installer and portable ZIP builds, and workspace backups that preserve legacy attachments. The optional product-model viewer is removed. New workspaces start empty; static frontend hosting requires the API.
 
 ## Required before a paid pilot
 

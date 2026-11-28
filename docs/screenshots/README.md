@@ -1,6 +1,8 @@
 # Interface previews
 
-These screenshots show the InvenTrack 3.1.0 interface. Accounts and inventory shown here belong to disposable verification workspaces.
+The online launcher screenshot shows InvenTrack 3.2.0. The welcome, sign-in, dashboard, and account previews show the interface introduced in 3.1.0. Accounts and inventory shown here belong to disposable verification workspaces.
+
+![Windows launcher with online and local workspaces](launcher-online.png)
 
 ![Cinematic welcome page](welcome.png)
 
